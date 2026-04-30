@@ -324,18 +324,25 @@ def _extract_google_image_bytes(response: Any) -> bytes:
         if not inline_data:
             continue
 
-        as_image = getattr(part, 'as_image', None)
-        if callable(as_image):
-            image = as_image()
-            output = io.BytesIO()
-            image.save(output, format='PNG')
-            return output.getvalue()
-
         data = getattr(inline_data, 'data', None)
         if data:
             if isinstance(data, str):
                 return base64.b64decode(data)
             return bytes(data)
+
+        as_image = getattr(part, 'as_image', None)
+        if callable(as_image):
+            image = as_image()
+            image_bytes = getattr(image, 'image_bytes', None)
+            if image_bytes:
+                return bytes(image_bytes)
+
+            output = io.BytesIO()
+            try:
+                image.save(output, format='PNG')
+            except TypeError:
+                image.save(output)
+            return output.getvalue()
 
     response_text = _extract_google_response_text(parts)
     if response_text:
