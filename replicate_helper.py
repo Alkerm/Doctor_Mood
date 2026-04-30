@@ -7,8 +7,21 @@ import replicate
 import os
 import time
 import json
-from typing import Optional, Dict, Any
+import io
+import uuid
+import base64
+from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
+import requests
+from PIL import Image
+import cloudinary_helper
+
+try:
+    from google import genai
+    from google.genai import types as genai_types
+except Exception:
+    genai = None
+    genai_types = None
 
 # Load environment variables
 load_dotenv()
@@ -17,6 +30,29 @@ load_dotenv()
 REPLICATE_API_TOKEN = os.getenv('REPLICATE_API_TOKEN')
 if REPLICATE_API_TOKEN:
     os.environ['REPLICATE_API_TOKEN'] = REPLICATE_API_TOKEN
+
+
+GOOGLE_DIRECT_MODELS = {
+    'google/nano-banana': 'gemini-2.5-flash-image',
+    'google/nano-banana-pro': 'gemini-3-pro-image-preview',
+    'google/nano-banana-2': 'gemini-3.1-flash-image-preview',
+}
+
+SUPPORTED_FACE_SWAP_MODELS = (
+    'yan-ops/face_swap',
+    'codeplugtech/face-swap',
+    *GOOGLE_DIRECT_MODELS.keys(),
+)
+
+GOOGLE_DIRECT_RESULTS: Dict[str, Dict[str, Any]] = {}
+
+
+def _is_google_direct_model(model_name: str) -> bool:
+    return model_name in GOOGLE_DIRECT_MODELS
+
+
+def _get_google_api_key() -> Optional[str]:
+    return (os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or '').strip() or None
 
 def _clamp_weight(value: float) -> float:
     return max(0.5, min(1.0, value))
@@ -72,24 +108,14 @@ def _get_swap_weight(character: Optional[str] = None, style_config: Optional[Dic
 
 def _get_face_swap_model() -> str:
     raw = (os.getenv('FACE_SWAP_MODEL') or 'google/nano-banana').strip().lower()
-    if raw in (
-        'yan-ops/face_swap',
-        'codeplugtech/face-swap',
-        'google/nano-banana',
-        'google/nano-banana-pro'
-    ):
+    if raw in SUPPORTED_FACE_SWAP_MODELS:
         return raw
     return 'google/nano-banana'
 
 
 def _get_fallback_model(primary_model: str) -> Optional[str]:
     raw = (os.getenv('FACE_SWAP_FALLBACK_MODEL') or '').strip().lower()
-    if raw in (
-        'yan-ops/face_swap',
-        'codeplugtech/face-swap',
-        'google/nano-banana',
-        'google/nano-banana-pro'
-    ) and raw != primary_model:
+    if raw in SUPPORTED_FACE_SWAP_MODELS and raw != primary_model:
         return raw
     return None
 
@@ -158,7 +184,7 @@ def _build_input_candidates(
             {"input": target_image, "swap": source_image},
         ]
 
-    if model_name in ('google/nano-banana', 'google/nano-banana-pro'):
+    if _is_google_direct_model(model_name):
         prompt = _build_nano_banana_prompt(character=character, style_config=style_config)
         return [
             {"prompt": prompt, "image_input": [source_image], "output_format": "jpg"},
@@ -194,6 +220,134 @@ def _create_prediction_with_candidates(model_name: str, input_candidates: list) 
     if last_error:
         raise last_error
     return None
+
+
+def _download_image_for_google(image_url: str) -> Image.Image:
+    response = requests.get(image_url, timeout=30)
+    response.raise_for_status()
+    image = Image.open(io.BytesIO(response.content))
+    return image.convert('RGB')
+
+
+def _iter_google_response_parts(response: Any) -> List[Any]:
+    parts = getattr(response, 'parts', None)
+    if parts:
+        return list(parts)
+
+    candidates = getattr(response, 'candidates', None) or []
+    collected: List[Any] = []
+    for candidate in candidates:
+        content = getattr(candidate, 'content', None)
+        candidate_parts = getattr(content, 'parts', None) if content else None
+        if candidate_parts:
+            collected.extend(candidate_parts)
+    return collected
+
+
+def _extract_google_response_text(parts: List[Any]) -> str:
+    text_chunks = []
+    for part in parts:
+        text = getattr(part, 'text', None)
+        if text:
+            text_chunks.append(str(text))
+    return ' '.join(text_chunks).strip()
+
+
+def _extract_google_image_bytes(response: Any) -> bytes:
+    parts = _iter_google_response_parts(response)
+    for part in parts:
+        inline_data = getattr(part, 'inline_data', None) or getattr(part, 'inlineData', None)
+        if not inline_data:
+            continue
+
+        as_image = getattr(part, 'as_image', None)
+        if callable(as_image):
+            image = as_image()
+            output = io.BytesIO()
+            image.save(output, format='PNG')
+            return output.getvalue()
+
+        data = getattr(inline_data, 'data', None)
+        if data:
+            if isinstance(data, str):
+                return base64.b64decode(data)
+            return bytes(data)
+
+    response_text = _extract_google_response_text(parts)
+    if response_text:
+        raise RuntimeError(f"Google returned text but no image: {response_text[:500]}")
+    raise RuntimeError("Google returned no image output")
+
+
+def _remember_google_direct_result(result_url: str, result_public_id: Optional[str], model_name: str) -> str:
+    now = time.time()
+    for old_id, old_result in list(GOOGLE_DIRECT_RESULTS.items()):
+        if now - float(old_result.get('created_at', now)) > 3600:
+            GOOGLE_DIRECT_RESULTS.pop(old_id, None)
+
+    prediction_id = f"google-direct-{uuid.uuid4().hex}"
+    GOOGLE_DIRECT_RESULTS[prediction_id] = {
+        'prediction_id': prediction_id,
+        'status': 'succeeded',
+        'result_url': result_url,
+        'result_public_id': result_public_id,
+        'created_at': now,
+        'model': model_name,
+        'provider': 'google'
+    }
+    return prediction_id
+
+
+def _create_google_direct_generation(
+    model_name: str,
+    source_image: str,
+    character: str,
+    style_config: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    if genai is None or genai_types is None:
+        raise RuntimeError("google-genai package is required for Google direct image generation")
+
+    api_key = _get_google_api_key()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY is required for Google direct image generation")
+
+    google_model = GOOGLE_DIRECT_MODELS[model_name]
+    prompt = _build_nano_banana_prompt(character=character, style_config=style_config)
+
+    print(f"[Google] Using direct model: {google_model} for {model_name}", flush=True)
+    print(f"[Google] Downloading source image: {source_image[:50]}...", flush=True)
+
+    source = _download_image_for_google(source_image)
+    client = genai.Client(api_key=api_key)
+    config = genai_types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE'])
+
+    response = client.models.generate_content(
+        model=google_model,
+        contents=[prompt, source],
+        config=config
+    )
+    image_bytes = _extract_google_image_bytes(response)
+
+    print(f"[Google] Generated image size: {len(image_bytes)} bytes", flush=True)
+    upload_result = cloudinary_helper.upload_temp_image(image_bytes)
+    if not upload_result:
+        raise RuntimeError("Failed to upload Google generated image to Cloudinary")
+
+    prediction_id = _remember_google_direct_result(
+        result_url=upload_result['url'],
+        result_public_id=upload_result.get('public_id'),
+        model_name=model_name
+    )
+    print(f"[Google] Direct generation completed: {prediction_id}", flush=True)
+
+    return {
+        'prediction_id': prediction_id,
+        'status': 'succeeded',
+        'created_at': time.time(),
+        'model': model_name,
+        'provider': 'google',
+        'google_model': google_model
+    }
 
 
 # Character style mapping for SDXL IP-Adapter FaceID
@@ -576,7 +730,7 @@ def start_face_generation(
         
         primary_model = _get_face_swap_model()
         fallback_model = _get_fallback_model(primary_model)
-        uses_template = primary_model not in ('google/nano-banana', 'google/nano-banana-pro')
+        uses_template = not _is_google_direct_model(primary_model)
 
         # Get character-specific settings
         style_config = CHARACTER_STYLES.get(character.lower(), CHARACTER_STYLES['superman'])
@@ -604,6 +758,14 @@ def start_face_generation(
         prediction = None
         model_used = primary_model
         try:
+            if _is_google_direct_model(primary_model):
+                return _create_google_direct_generation(
+                    model_name=primary_model,
+                    source_image=child_image_url,
+                    character=character,
+                    style_config=style_config
+                )
+
             input_candidates = _build_input_candidates(
                 model_name=primary_model,
                 source_image=child_image_url,
@@ -618,6 +780,14 @@ def start_face_generation(
                 raise primary_error
             print(f"[Replicate] Primary model failed, trying fallback. Error: {primary_error}", flush=True)
             model_used = fallback_model
+            if _is_google_direct_model(fallback_model):
+                return _create_google_direct_generation(
+                    model_name=fallback_model,
+                    source_image=child_image_url,
+                    character=character,
+                    style_config=style_config
+                )
+
             fallback_candidates = _build_input_candidates(
                 model_name=fallback_model,
                 source_image=child_image_url,
@@ -656,6 +826,11 @@ def check_prediction_status(prediction_id: str) -> Optional[Dict[str, Any]]:
         Dict with status and result URL if complete, None if failed
     """
     try:
+        if prediction_id in GOOGLE_DIRECT_RESULTS:
+            result = dict(GOOGLE_DIRECT_RESULTS[prediction_id])
+            print(f"[Google] Returning cached direct result: {prediction_id}", flush=True)
+            return result
+
         # Check status via API
         prediction = replicate.predictions.get(prediction_id)
         

@@ -92,7 +92,7 @@ For production deployment:
 3. Render will use:
    - Build: `pip install -r requirements.txt`
    - Start: `gunicorn app:app`
-4. Set env vars from `.env.example` (at least `FLASK_SECRET_KEY`, `ADMIN_API_KEY`, `REPLICATE_API_TOKEN`, Cloudinary keys).
+4. Set env vars from `.env.example` (at least `FLASK_SECRET_KEY`, `ADMIN_API_KEY`, `GEMINI_API_KEY`, Cloudinary keys).
 5. Open:
    - `/` for user app
    - `/admin` for admin panel
@@ -113,6 +113,8 @@ This app now includes:
 - `DB_PATH`: SQLite DB path (default `app.db`)
 - `DEFAULT_TRIALS`: New users initial allowed uses (default `0`)
 - `ADMIN_API_KEY`: Secret key for admin API
+- `GEMINI_API_KEY`: Google AI Studio API key for `FACE_SWAP_MODEL=google/nano-banana`
+- `FACE_SWAP_MODEL`: Defaults to `google/nano-banana`, which calls Google's direct `gemini-2.5-flash-image` model
 
 ### Add more trials for a user
 

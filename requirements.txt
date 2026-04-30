@@ -4,6 +4,7 @@ Pillow
 requests
 python-dotenv
 replicate
+google-genai
 cloudinary
 gunicorn
 psycopg2-binary

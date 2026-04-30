@@ -474,12 +474,12 @@ def swap_face():
             return jsonify({'error': str(decode_error)}), 400
 
         character = data['character']
-        requested_model = (os.getenv('FACE_SWAP_MODEL') or 'yan-ops/face_swap').strip().lower()
+        requested_model = (os.getenv('FACE_SWAP_MODEL') or 'google/nano-banana').strip().lower()
         
         print(f"[INFO] Character: {character}", flush=True)
         print(f"[INFO] Original image size: {len(child_image_bytes)} bytes", flush=True)
 
-        if requested_model in ('google/nano-banana', 'google/nano-banana-pro'):
+        if requested_model in replicate_helper.GOOGLE_DIRECT_MODELS:
             # Keep full-frame context for image-edit models so face/body integration
             # remains natural; aggressive face crop can make edits look pasted.
             processed_image_bytes = child_image_bytes
@@ -714,8 +714,10 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'cloudinary': 'configured' if os.getenv('CLOUDINARY_API_KEY') else 'not configured',
+        'gemini': 'configured' if (os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')) else 'not configured',
         'replicate': 'configured' if os.getenv('REPLICATE_API_TOKEN') else 'not configured',
-        'auth_db': DB_PATH
+        'face_swap_model': (os.getenv('FACE_SWAP_MODEL') or 'google/nano-banana').strip().lower(),
+        'auth_db': 'postgres' if DATABASE_URL else 'json'
     })
 
 
@@ -753,12 +755,13 @@ def test_cloudinary():
 
 if __name__ == '__main__':
     print("\n" + "=" * 60)
-    print("DREAM JOB PHOTO BOOTH - yan-ops/face_swap")
+    face_swap_model = (os.getenv('FACE_SWAP_MODEL') or 'google/nano-banana').strip().lower()
+    print(f"DREAM JOB PHOTO BOOTH - {face_swap_model}")
     print("=" * 60)
     print("Using:")
     print("  - Cloudinary for temporary image storage")
-    print("  - replicate: yan-ops/face_swap")
-    print("  - Seamless face replacement pipeline")
+    print(f"  - AI model: {face_swap_model}")
+    print("  - Face transformation pipeline")
     print("=" * 60)
     print("Server starting at: http://localhost:5000")
     print("=" * 60 + "\n")
