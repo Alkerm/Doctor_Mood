@@ -512,16 +512,29 @@ def swap_face():
         
         # Step 2: Start Replicate prediction with template target image
         print("[STEP 2] Starting AI face swap...", flush=True)
-        prediction_info = replicate_helper.start_face_generation(
-            child_image_url=child_image_url,
-            character=character
-        )
+        try:
+            prediction_info = replicate_helper.start_face_generation(
+                child_image_url=child_image_url,
+                character=character,
+                raise_errors=True
+            )
+        except replicate_helper.FaceGenerationStartError as ai_error:
+            cloudinary_helper.delete_temp_image(child_public_id)
+            refund_one_use(user['id'])
+            error_message = f'Failed to start AI processing: {str(ai_error)}'
+            print(f"[ERROR] {error_message}", flush=True)
+            return jsonify({'error': error_message}), 502
         
         if not prediction_info:
             # Cleanup uploaded images
             cloudinary_helper.delete_temp_image(child_public_id)
             refund_one_use(user['id'])
-            return jsonify({'error': 'Failed to start AI processing'}), 500
+            start_error = replicate_helper.get_last_start_error()
+            error_message = 'Failed to start AI processing'
+            if start_error:
+                error_message = f'{error_message}: {start_error}'
+            print(f"[ERROR] {error_message}", flush=True)
+            return jsonify({'error': error_message}), 502
         
         prediction_id = prediction_info['prediction_id']
         prediction_started = True

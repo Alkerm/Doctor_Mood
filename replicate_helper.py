@@ -45,6 +45,11 @@ SUPPORTED_FACE_SWAP_MODELS = (
 )
 
 GOOGLE_DIRECT_RESULTS: Dict[str, Dict[str, Any]] = {}
+LAST_START_ERROR: Optional[str] = None
+
+
+class FaceGenerationStartError(RuntimeError):
+    """Raised when the provider cannot start or complete initial image generation."""
 
 
 def _is_google_direct_model(model_name: str) -> bool:
@@ -53,6 +58,65 @@ def _is_google_direct_model(model_name: str) -> bool:
 
 def _get_google_api_key() -> Optional[str]:
     return (os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or '').strip() or None
+
+
+def _redact_sensitive_values(message: str) -> str:
+    redacted = message or ''
+    for key in (
+        'GEMINI_API_KEY',
+        'GOOGLE_API_KEY',
+        'REPLICATE_API_TOKEN',
+        'CLOUDINARY_API_KEY',
+        'CLOUDINARY_API_SECRET',
+    ):
+        value = (os.getenv(key) or '').strip()
+        if value and len(value) >= 8:
+            redacted = redacted.replace(value, '[redacted]')
+    return redacted
+
+
+def _safe_error_message(error: Any, max_length: int = 700) -> str:
+    message = _redact_sensitive_values(str(error).strip() or error.__class__.__name__)
+    return message[:max_length]
+
+
+def get_last_start_error() -> Optional[str]:
+    return LAST_START_ERROR
+
+
+def _set_last_start_error(error: Any) -> None:
+    global LAST_START_ERROR
+    LAST_START_ERROR = _safe_error_message(error)
+
+
+def _clear_last_start_error() -> None:
+    global LAST_START_ERROR
+    LAST_START_ERROR = None
+
+
+def _google_direct_max_attempts() -> int:
+    raw = os.getenv('GOOGLE_DIRECT_MAX_ATTEMPTS', '1')
+    try:
+        attempts = int(raw)
+    except ValueError:
+        attempts = 1
+    return max(1, min(5, attempts))
+
+
+def _is_retryable_google_error(error: Exception) -> bool:
+    message = str(error).lower()
+    retryable_markers = (
+        '500',
+        '502',
+        '503',
+        '504',
+        'deadline',
+        'timeout',
+        'temporarily',
+        'unavailable',
+        'internal',
+    )
+    return any(marker in message for marker in retryable_markers)
 
 def _clamp_weight(value: float) -> float:
     return max(0.5, min(1.0, value))
@@ -320,22 +384,41 @@ def _create_google_direct_generation(
     source = _download_image_for_google(source_image)
     client = genai.Client(api_key=api_key)
     config = genai_types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE'])
+    max_attempts = _google_direct_max_attempts()
+    last_error: Optional[Exception] = None
 
-    response = client.models.generate_content(
-        model=google_model,
-        contents=[prompt, source],
-        config=config
-    )
-    image_bytes = _extract_google_image_bytes(response)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            print(f"[Google] Generation attempt {attempt}/{max_attempts}", flush=True)
+            response = client.models.generate_content(
+                model=google_model,
+                contents=[prompt, source],
+                config=config
+            )
+            image_bytes = _extract_google_image_bytes(response)
+            break
+        except Exception as e:
+            last_error = e
+            print(f"[Google] Generation attempt {attempt} failed: {_safe_error_message(e)}", flush=True)
+            if attempt >= max_attempts or not _is_retryable_google_error(e):
+                raise
+            time.sleep(min(2 ** (attempt - 1), 4))
+    else:
+        raise RuntimeError(f"Google image generation failed: {_safe_error_message(last_error)}")
 
     print(f"[Google] Generated image size: {len(image_bytes)} bytes", flush=True)
     upload_result = cloudinary_helper.upload_temp_image(image_bytes)
-    if not upload_result:
-        raise RuntimeError("Failed to upload Google generated image to Cloudinary")
+    if upload_result:
+        result_url = upload_result['url']
+        result_public_id = upload_result.get('public_id')
+    else:
+        print("[Google] Cloudinary result upload failed; returning inline data URL fallback", flush=True)
+        result_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode('ascii')}"
+        result_public_id = None
 
     prediction_id = _remember_google_direct_result(
-        result_url=upload_result['url'],
-        result_public_id=upload_result.get('public_id'),
+        result_url=result_url,
+        result_public_id=result_public_id,
         model_name=model_name
     )
     print(f"[Google] Direct generation completed: {prediction_id}", flush=True)
@@ -712,7 +795,8 @@ distorted face, cartoon, anime, exaggerated features, deformed''',
 
 def start_face_generation(
     child_image_url: str,
-    character: str = 'superman'
+    character: str = 'superman',
+    raise_errors: bool = False
 ) -> Optional[Dict[str, Any]]:
     """
     Start face swap using yan-ops/face_swap model.
@@ -725,6 +809,7 @@ def start_face_generation(
         Dict with prediction_id and status, or None if failed
     """
     try:
+        _clear_last_start_error()
         print(f"[Replicate] Starting Face Swap for character: {character}", flush=True)
         print(f"[Replicate] Child/Source image: {child_image_url[:50]}...", flush=True)
         
@@ -801,6 +886,7 @@ def start_face_generation(
         prediction_id = prediction.id
         print(f"[Replicate] Prediction started: {prediction_id} (model: {model_used})", flush=True)
         
+        _clear_last_start_error()
         return {
             'prediction_id': prediction_id,
             'status': prediction.status,
@@ -809,9 +895,13 @@ def start_face_generation(
         }
         
     except Exception as e:
-        print(f"[Replicate] Failed to start prediction: {str(e)}", flush=True)
+        _set_last_start_error(e)
+        safe_error = _safe_error_message(e)
+        print(f"[Replicate] Failed to start prediction: {safe_error}", flush=True)
         import traceback
         traceback.print_exc()
+        if raise_errors:
+            raise FaceGenerationStartError(safe_error) from e
         return None
 
 
