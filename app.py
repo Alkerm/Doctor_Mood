@@ -349,8 +349,15 @@ def admin_add_trials():
 
     if not email:
         return jsonify({'error': 'Invalid email'}), 400
-    if not isinstance(additional_uses, int) or additional_uses <= 0:
-        return jsonify({'error': 'additional_uses must be a positive integer'}), 400
+    if not isinstance(additional_uses, int) or additional_uses == 0:
+        return jsonify({'error': 'additional_uses must be a non-zero integer (positive to add, negative to reduce)'}), 400
+    
+    # Get current user to prevent negative total_uses
+    temp_user = get_user_by_email(email)
+    if temp_user:
+        new_total = temp_user['total_uses'] + additional_uses
+        if new_total < 0:
+            return jsonify({'error': f"Cannot reduce by {abs(additional_uses)}. User only has {temp_user['total_uses']} total uses."}), 400
 
     user = get_user_by_email(email)
     if not user:
@@ -358,8 +365,13 @@ def admin_add_trials():
 
     updated = db.add_trials(user['id'], additional_uses)
 
+    if additional_uses > 0:
+        message = f'Added {additional_uses} trials. New total: {updated["total_uses"]}'
+    else:
+        message = f'Reduced by {abs(additional_uses)} trials. New total: {updated["total_uses"]}'
+    
     return jsonify({
-        'message': f'Added {additional_uses} uses',
+        'message': message,
         'user': user_public_info(updated)
     })
 

@@ -83,8 +83,8 @@ async function addTrials() {
         setAdminMessage('Enter user email.', true);
         return;
     }
-    if (!Number.isInteger(additionalUses) || additionalUses <= 0) {
-        setAdminMessage('Trials must be a positive integer.', true);
+    if (!Number.isInteger(additionalUses) || additionalUses === 0) {
+        setAdminMessage('Enter a non-zero integer (positive to add trials, negative to reduce).', true);
         return;
     }
 
