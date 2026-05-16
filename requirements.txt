@@ -8,6 +8,10 @@ google-genai
 cloudinary
 gunicorn
 psycopg2-binary
-opencv-python-headless
 numpy
 qrcode[pil]
+werkzeug
+# opencv-python-headless is used locally for face preprocessing.
+# Vercel does not support it \u2014 the app detects its absence and skips preprocessing gracefully.
+# Uncomment the line below only when deploying to an environment that supports native binaries (e.g. Render, Railway).
+# opencv-python-headless

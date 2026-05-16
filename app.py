@@ -10,8 +10,16 @@ import secrets
 from datetime import datetime
 import csv
 from io import StringIO
-import cv2
-import numpy as np
+# OpenCV is optional — not available on Vercel's serverless runtime.
+# Face preprocessing is skipped gracefully when cv2 is absent.
+try:
+    import cv2
+    import numpy as np
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    cv2 = None
+    np = None
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -44,7 +52,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 active_predictions = {}
 FACE_TARGET_SIZE = int(os.getenv('FACE_TARGET_SIZE', '1024'))
 FACE_CROP_SCALE = float(os.getenv('FACE_CROP_SCALE', '2.4'))
-_face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+_face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml') if CV2_AVAILABLE else None
 DEFAULT_TRIALS = int(os.getenv('DEFAULT_TRIALS', '0'))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -167,8 +175,13 @@ def decode_base64_image(image_input):
 def preprocess_child_photo(image_bytes):
     """
     Improve face-swap input quality by centering on face and resizing to fixed square.
+    Falls back to returning original bytes when cv2 is not available (e.g. Vercel).
     Falls back to centered square crop if no face is detected.
     """
+    if not CV2_AVAILABLE:
+        print("[INFO] cv2 not available — skipping face preprocessing, using original bytes", flush=True)
+        return image_bytes, False
+
     nparr = np.frombuffer(image_bytes, np.uint8)
     image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     if image is None:
@@ -244,17 +257,8 @@ def handle_exception(e):
     tb = traceback.format_exc()
     print(tb, flush=True)
     
-    # Save to file immediately
-    try:
-        with open('crash_log.txt', 'a', encoding='utf-8') as f:
-            from datetime import datetime
-            f.write(f"\n{'='*60}\n")
-            f.write(f"TIME: {datetime.now()}\n")
-            f.write(f"PATH: {request.path}\n")
-            f.write(f"ERROR: {str(e)}\n")
-            f.write(f"TRACEBACK:\n{tb}\n")
-    except:
-        pass
+    # Log to stdout only (serverless environments like Vercel don't allow file writes)
+    print(f"[CRASH] TIME: {datetime.utcnow()} PATH: {request.path} ERROR: {str(e)}", flush=True)
         
     return jsonify({'error': f'Server Error: {str(e)}'}), 500
 
@@ -579,13 +583,8 @@ def swap_face():
         tb_str = traceback.format_exc()
         print(tb_str, flush=True)
         
-        # Also write to error log file
-        with open('error_log.txt', 'a', encoding='utf-8') as f:
-            from datetime import datetime
-            f.write(f"\n{'='*50}\n")
-            f.write(f"Time: {datetime.now()}\n")
-            f.write(f"Error: {str(e)}\n")
-            f.write(f"Traceback:\n{tb_str}\n")
+        # Log to stdout only (serverless environments like Vercel don't allow file writes)
+        print(f"[SWAP_ERROR] Time: {datetime.utcnow()} Error: {str(e)}", flush=True)
         
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
