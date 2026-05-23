@@ -1,136 +1,105 @@
-# Photo Booth Face Swap Application
+# What Kind of OB-GYN Are You? 👨‍⚕️🩺
 
-A web-based photo booth application that captures live photos via camera, swaps faces with superhero characters using AI, and enables printing.
+A premium, interactive AI-powered photo booth web application built for OB-GYN doctors. The app captures a live photo via the webcam or allows an image upload, applies a state-of-the-art AI transformation based on 16 hilarious doctor personalities (8 male / 8 female), overlays dynamic magazine-style captions, and outputs a downloadable character card complete with a shareable QR code.
 
-## Features
+---
 
-- 📸 **Live Camera Preview** - Real-time camera feed with WebRTC
-- 🦸 **Character Selection** - Choose from Superman, Batman, Spider-Man, Wonder Woman
-- ✨ **AI Face Swap** - Powered by Hugging Face API (free tier)
-- 🖨️ **Print Functionality** - Print your superhero transformation
-- 📱 **Responsive Design** - Works on desktop, tablet, and mobile
+## ✨ Features
 
-## Installation
+- **📸 Dual Input Channels**: Real-time high-quality webcam capture with custom burst-frame evaluation for the best picture quality, or instant file uploads.
+- **🩺 16 OB-GYN Personalities**: Harmonious male and female card selections spanning 8 archetypes:
+  1. *Before OB Residency* ("Smiling before discovering labor ward reality.")
+  2. *After 24-Hour Call* ("Running on 2% battery.")
+  3. *Emergency C-Section* ("Activated survival mode.")
+  4. *After Coffee* ("Vital signs restored.")
+  5. *Coffee-Powered Consultant* ("Fueled by caffeine and confidence.")
+  6. *Delivery Room Commander* ("Born to manage labor ward drama.")
+  7. *Documentation Ninja* ("Fights unfinished notes daily.")
+  8. *Night-Shift Survivor* ("Hasn't seen sunlight in days.")
+- **🎭 Intelligent AI Face Blending**: Integrates Gemini AI and Replicate's high-fidelity image models to flawlessly blend faces onto stylized custom character card layouts.
+- **🎨 Dark Medical Glassmorphism Design**: Designed with standard HSL tailored colors, gorgeous glow states, micro-interactions, responsive grids, and beautiful visual feedback.
+- **💬 Magazine-Style Overlays**: High-fidelity Pil-based overlay engine that draws semi-transparent backdrops and high-contrast captions on the final output image.
+- **📱 QR Code Generation**: Instantly generates scan-ready QR codes of the output images, allowing users to save results to their smartphones immediately.
+- **🚀 Vercel-Ready Deployment**: Configured to run out-of-the-box on Vercel Serverless Functions with zero databases or local state dependencies.
 
-1. Install Python dependencies:
+---
+
+## 🛠️ Tech Stack
+
+- **Backend**: Python + Flask + PIL/Pillow
+- **AI Processing**: Gemini AI (`gemini-2.5-flash` / `google/nano-banana`) & Replicate
+- **Media Hosting**: Cloudinary (temp asset storage)
+- **Frontend**: Vanilla HTML5 + Custom Modern CSS + JavaScript (Modern Camera WebRTC + Canvas + QR)
+- **Deployment**: Vercel (Configured via `vercel.json` and serverless Python rules)
+
+---
+
+## 📦 Getting Started
+
+### 1. Prerequisites
+Ensure you have **Python 3.8+** installed.
+
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-2. (Optional) Create `.env` file for API configuration:
-```bash
-cp .env.example .env
+### 3. Setup Environment Variables
+Create a `.env` file in the root of the project:
+```env
+# ── Gemini AI (REQUIRED) ───────────────────────────────────
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# ── Cloudinary (REQUIRED) ──────────────────────────────────
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# ── Advanced Config (Optional) ─────────────────────────────
+FACE_SWAP_MODEL=google/nano-banana
+GOOGLE_DIRECT_MAX_ATTEMPTS=1
 ```
 
-## Usage
-
-1. Start the Flask server:
+### 4. Run Locally
 ```bash
 python app.py
 ```
+Open your browser and navigate to `http://localhost:5000` 🚀
 
-2. Open your browser and navigate to:
+---
+
+## ⚡ Deployment to Vercel
+
+This repository is pre-configured for instant **Vercel** serverless deployment:
+
+1. **Push your code** to your GitHub repository (e.g., `https://github.com/Alkerm/Doctor_Mood.git`).
+2. Log into your **Vercel** account, click **Add New Project**, and import your repository.
+3. In the project **Environment Variables** settings, add the exact variables from your `.env` file:
+   - `GEMINI_API_KEY`
+   - `CLOUDINARY_CLOUD_NAME`
+   - `CLOUDINARY_API_KEY`
+   - `CLOUDINARY_API_SECRET`
+   - `FACE_SWAP_MODEL=google/nano-banana`
+4. Click **Deploy**. Vercel will build the serverless functions and serve the static files instantly!
+
+---
+
+## 📂 Project Structure
 ```
-http://localhost:5000
-```
-
-3. Allow camera permissions when prompted
-
-4. Follow the on-screen instructions:
-   - Position yourself in the camera
-   - Click "Capture Photo"
-   - Select a superhero character
-   - Wait for processing
-   - Print or retake!
-
-## Requirements
-
-- Python 3.8+
-- Modern web browser (Chrome, Firefox, Safari, Edge)
-- Camera/webcam access
-- Internet connection (for AI processing)
-
-## API Usage
-
-The application uses Hugging Face's free inference API:
-- **Free tier**: 30,000 requests/month
-- **Perfect for**: 10-15 devices with moderate usage
-- **No GPU required** on your server
-
-## Project Structure
-
-```
-KHAL/
-├── app.py                 # Flask backend server
-├── requirements.txt       # Python dependencies
-├── .env.example          # Environment variables template
+Doctor_Mood/
+├── app.py                 # Core Flask Server / API Endpoints
+├── replicate_helper.py    # AI Generation & Gemini Prompting Engine
+├── cloudinary_helper.py   # Temporary Cloudinary Upload Handler
+├── vercel.json           # Vercel Serverless Routing Config
+├── requirements.txt       # Production Dependencies
 ├── templates/
-│   └── index.html        # Main HTML interface
-├── static/
-│   ├── style.css         # CSS styling
-│   ├── app.js            # JavaScript logic
-│   └── characters/       # Superhero character images
-│       ├── superman.png
-│       ├── batman.png
-│       ├── spiderman.png
-│       └── wonderwoman.png
-└── README.md             # This file
+│   └── index.html        # Glassmorphic Frontend Dashboard
+└── static/
+    ├── app.js            # Camera capture, status polling, and rendering logic
+    └── style.css         # Beautiful responsive dark medical theme styling
 ```
 
-## Deployment
+---
 
-For production deployment:
-1. Use a production WSGI server (gunicorn, waitress)
-2. Set `FLASK_ENV=production` in `.env`
-3. Configure HTTPS for camera access
-4. Use a reverse proxy (nginx, Apache)
-
-### Render quick deploy
-
-1. Push this repo to GitHub (already done).
-2. On Render, create a new Web Service from the repo.
-3. Render will use:
-   - Build: `pip install -r requirements.txt`
-   - Start: `gunicorn app:app`
-4. Set env vars from `.env.example` (at least `FLASK_SECRET_KEY`, `ADMIN_API_KEY`, `GEMINI_API_KEY`, Cloudinary keys).
-5. Open:
-   - `/` for user app
-   - `/admin` for admin panel
-
-Important: current app uses SQLite (`DB_PATH=app.db`). On many free cloud instances, local disk may reset after redeploy/restart. For persistent user/trial data, move DB to managed PostgreSQL.
-
-## Authentication And Trial Limits
-
-This app now includes:
-- Email/password login/signup (`/auth/signup`, `/auth/login`)
-- Per-user usage limit (default `0`)
-- Admin endpoint to add more trials (`/admin/add-trials`)
-- Admin page at `/admin` to list users and add trials
-
-### Required/Important environment variables
-
-- `FLASK_SECRET_KEY`: Strong random string for signing sessions
-- `DB_PATH`: SQLite DB path (default `app.db`)
-- `DEFAULT_TRIALS`: New users initial allowed uses (default `0`)
-- `ADMIN_API_KEY`: Secret key for admin API
-- `GEMINI_API_KEY`: Google AI Studio API key for `FACE_SWAP_MODEL=google/nano-banana`
-- `FACE_SWAP_MODEL`: Defaults to `google/nano-banana`, which calls Google's direct `gemini-2.5-flash-image` model
-
-### Add more trials for a user
-
-`POST /admin/add-trials`
-
-Headers:
-- `X-Admin-Key: <ADMIN_API_KEY>`
-
-JSON body:
-```json
-{
-  "email": "user@example.com",
-  "additional_uses": 20
-}
-```
-
-## License
-
-MIT License - Feel free to use and modify!
+## 📜 License
+MIT License. Feel free to use and customize for your events and activities!

@@ -1,237 +1,132 @@
-// State management
-let currentScreen = 'auth';
-let capturedPhoto = null;
+// ── State ──────────────────────────────────────────────────
+let capturedPhoto    = null;
 let selectedCharacter = null;
-let videoStream = null;
-let currentUser = null;
+let videoStream      = null;
 
-// DOM elements
-const authScreen = document.getElementById('auth-screen');
-const cameraScreen = document.getElementById('camera-screen');
-const characterScreen = document.getElementById('character-screen');
+// ── DOM References ─────────────────────────────────────────
+const cameraScreen     = document.getElementById('camera-screen');
+const characterScreen  = document.getElementById('character-screen');
 const processingScreen = document.getElementById('processing-screen');
-const resultScreen = document.getElementById('result-screen');
-const sessionBar = document.getElementById('session-bar');
-const sessionEmail = document.getElementById('session-email');
-const sessionUses = document.getElementById('session-uses');
-const logoutBtn = document.getElementById('logout-btn');
-const authEmailInput = document.getElementById('auth-email');
-const authPasswordInput = document.getElementById('auth-password');
-const authMessage = document.getElementById('auth-message');
-const loginBtn = document.getElementById('login-btn');
-const signupBtn = document.getElementById('signup-btn');
+const resultScreen     = document.getElementById('result-screen');
 
-const cameraFeed = document.getElementById('camera-feed');
-const photoCanvas = document.getElementById('photo-canvas');
-const captureBtn = document.getElementById('capture-btn');
-const cameraError = document.getElementById('camera-error');
+const cameraFeed    = document.getElementById('camera-feed');
+const photoCanvas   = document.getElementById('photo-canvas');
+const captureBtn    = document.getElementById('capture-btn');
+const uploadBtn     = document.getElementById('upload-btn');
+const fileInput     = document.getElementById('file-input');
+const cameraError   = document.getElementById('camera-error');
 
 const capturedPreview = document.getElementById('captured-preview');
-const characterCards = document.querySelectorAll('.character-card');
-const retakeBtn1 = document.getElementById('retake-btn-1');
-const retakeBtn2 = document.getElementById('retake-btn-2');
+const characterCards  = document.querySelectorAll('.character-card');
+const retakeBtn1      = document.getElementById('retake-btn-1');
+const retakeBtn2      = document.getElementById('retake-btn-2');
+const resultImage     = document.getElementById('result-image');
+const loadingText     = document.getElementById('loading-text');
 
-const resultImage = document.getElementById('result-image');
+// ── Image Quality ──────────────────────────────────────────
+const BURST_FRAME_COUNT    = 3;
+const BURST_FRAME_DELAY_MS = 140;
 
-
-const uploadBtn = document.getElementById('upload-btn');
-const fileInput = document.getElementById('file-input');
 const faceDetector = ('FaceDetector' in window)
     ? new FaceDetector({ fastMode: true, maxDetectedFaces: 1 })
     : null;
 
-const BURST_FRAME_COUNT = 3;
-const BURST_FRAME_DELAY_MS = 140;
-
-// Initialize on page load
-window.addEventListener('DOMContentLoaded', async () => {
+// ── Init ───────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
-    await restoreSession();
+    initCamera();
 });
 
+// ── Helpers ────────────────────────────────────────────────
 function isValidImageDataUrl(value) {
     return typeof value === 'string' && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(value);
 }
 
 async function parseJsonResponse(response) {
-    const responseText = await response.text();
-    if (!responseText) {
-        return null;
-    }
-
+    const text = await response.text();
+    if (!text) return null;
     try {
-        return JSON.parse(responseText);
-    } catch (parseError) {
+        return JSON.parse(text);
+    } catch {
         throw new Error(`Server returned invalid JSON (HTTP ${response.status})`);
     }
-}
-
-function setAuthMessage(message, isError = false) {
-    if (!authMessage) return;
-    authMessage.textContent = message || '';
-    authMessage.style.color = isError ? '#b91c1c' : '#374151';
-}
-
-function updateSessionBar(user) {
-    currentUser = user;
-    if (!user) {
-        sessionBar.style.display = 'none';
-        return;
-    }
-
-    sessionEmail.textContent = user.email;
-    sessionUses.textContent = `Remaining uses: ${user.remaining_uses}/${user.total_uses}`;
-    sessionBar.style.display = 'flex';
-}
-
-async function restoreSession() {
-    try {
-        const response = await fetch('/auth/me');
-        const data = await parseJsonResponse(response);
-        if (response.ok && data && data.user) {
-            updateSessionBar(data.user);
-            switchScreen('camera');
-            initCamera();
-        } else {
-            updateSessionBar(null);
-            switchScreen('auth');
-        }
-    } catch (error) {
-        updateSessionBar(null);
-        switchScreen('auth');
-    }
-}
-
-async function authenticate(mode) {
-    const email = (authEmailInput.value || '').trim();
-    const password = (authPasswordInput.value || '').trim();
-
-    if (!email) {
-        setAuthMessage('Please enter your email.', true);
-        return;
-    }
-    if (!password) {
-        setAuthMessage('Please enter your password.', true);
-        return;
-    }
-    if (mode === 'signup' && password.length < 8) {
-        setAuthMessage('Password must be at least 8 characters.', true);
-        return;
-    }
-
-    setAuthMessage(mode === 'signup' ? 'Creating account...' : 'Logging in...');
-
-    try {
-        const response = await fetch(mode === 'signup' ? '/auth/signup' : '/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const data = await parseJsonResponse(response);
-        if (!response.ok) {
-            throw new Error((data && data.error) || `Failed (HTTP ${response.status})`);
-        }
-
-        if (!data || !data.user) {
-            throw new Error('Invalid auth response from server');
-        }
-
-        updateSessionBar(data.user);
-        authPasswordInput.value = '';
-        setAuthMessage(data.message || 'Authenticated successfully.');
-        switchScreen('camera');
-        initCamera();
-    } catch (error) {
-        setAuthMessage(error.message || 'Authentication failed', true);
-    }
-}
-
-async function logout() {
-    try {
-        await fetch('/auth/logout', { method: 'POST' });
-    } catch (error) {
-        console.error('Logout failed:', error);
-    }
-
-    currentUser = null;
-    updateSessionBar(null);
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
-    switchScreen('auth');
-}
-
-function handleUnauthorized() {
-    alert('Your session expired. Please login again.');
-    logout();
 }
 
 function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function computeImageQualityMetrics(imageData) {
-    const data = imageData.data;
-    const width = imageData.width;
-    const height = imageData.height;
+function updateLoadingText(text) {
+    if (loadingText) loadingText.textContent = text;
+}
 
+// ── Camera ─────────────────────────────────────────────────
+async function initCamera() {
+    const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!isSecure) {
+        console.warn('Camera may not work on non-secure origin:', location.origin);
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        videoStream = stream;
+        cameraFeed.srcObject = stream;
+        cameraFeed.muted = true;
+        cameraFeed.classList.add('flipped');
+        cameraFeed.onloadedmetadata = () => {
+            cameraFeed.play().catch(e => console.error('Video play error:', e));
+        };
+        cameraError.style.display = 'none';
+        captureBtn.disabled = false;
+    } catch (error) {
+        console.error('Camera error:', error);
+        cameraError.style.display = 'block';
+        let msg = '⚠️ Camera access denied. Please allow camera permissions and refresh.';
+        if (error.name === 'NotAllowedError')  msg = '⚠️ Camera blocked by user. Enable it in browser settings.';
+        if (error.name === 'NotFoundError')    msg = '⚠️ No camera found on this device.';
+        if (error.name === 'NotReadableError') msg = '⚠️ Camera is in use by another app.';
+        cameraError.innerHTML = `<p>${msg}</p>`;
+        captureBtn.disabled = true;
+    }
+}
+
+// ── Image Quality Metrics ──────────────────────────────────
+function computeImageQualityMetrics(imageData) {
+    const { data, width, height } = imageData;
     const gray = new Float32Array(width * height);
     let brightnessSum = 0;
 
     for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-        const value = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        gray[p] = value;
-        brightnessSum += value;
+        const v = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        gray[p] = v;
+        brightnessSum += v;
     }
 
     const brightness = brightnessSum / gray.length;
-    let sharpnessSum = 0;
-    let count = 0;
+    let sharpnessSum = 0, count = 0;
 
     for (let y = 1; y < height; y += 2) {
         for (let x = 1; x < width; x += 2) {
             const idx = y * width + x;
-            const dx = Math.abs(gray[idx] - gray[idx - 1]);
-            const dy = Math.abs(gray[idx] - gray[idx - width]);
-            sharpnessSum += dx + dy;
+            sharpnessSum += Math.abs(gray[idx] - gray[idx - 1]) + Math.abs(gray[idx] - gray[idx - width]);
             count++;
         }
     }
 
-    const sharpness = count > 0 ? sharpnessSum / count : 0;
-    return { brightness, sharpness };
+    return { brightness, sharpness: count > 0 ? sharpnessSum / count : 0 };
 }
 
 async function detectFaceMetrics(canvas) {
-    if (!faceDetector) {
-        return { available: false, detected: false };
-    }
-
+    if (!faceDetector) return { available: false, detected: false };
     try {
         const faces = await faceDetector.detect(canvas);
-        if (!faces || faces.length === 0) {
-            return { available: true, detected: false };
-        }
-
+        if (!faces || faces.length === 0) return { available: true, detected: false };
         const box = faces[0].boundingBox;
-        const frameWidth = canvas.width;
-        const frameHeight = canvas.height;
-        const faceAreaRatio = (box.width * box.height) / (frameWidth * frameHeight);
-
-        const faceCenterX = box.x + box.width / 2;
-        const faceCenterY = box.y + box.height / 2;
-        const dx = Math.abs(faceCenterX - frameWidth / 2) / frameWidth;
-        const dy = Math.abs(faceCenterY - frameHeight / 2) / frameHeight;
-        const centerOffset = Math.sqrt(dx * dx + dy * dy);
-
-        return {
-            available: true,
-            detected: true,
-            faceAreaRatio,
-            centerOffset
-        };
-    } catch (error) {
-        console.warn('FaceDetector failed, continuing without face-gate:', error);
+        const faceAreaRatio = (box.width * box.height) / (canvas.width * canvas.height);
+        const dx = Math.abs(box.x + box.width / 2 - canvas.width / 2) / canvas.width;
+        const dy = Math.abs(box.y + box.height / 2 - canvas.height / 2) / canvas.height;
+        return { available: true, detected: true, faceAreaRatio, centerOffset: Math.sqrt(dx * dx + dy * dy) };
+    } catch {
         return { available: false, detected: false };
     }
 }
@@ -240,190 +135,51 @@ async function evaluateCanvasQuality(canvas) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const basic = computeImageQualityMetrics(imageData);
-    const face = await detectFaceMetrics(canvas);
+    const face  = await detectFaceMetrics(canvas);
 
-    const brightnessPenalty = Math.abs(basic.brightness - 128) / 128 * 18;
-    let score = basic.sharpness - brightnessPenalty;
-
+    let score = basic.sharpness - (Math.abs(basic.brightness - 128) / 128 * 18);
     if (face.available) {
-        if (!face.detected) {
-            score -= 30;
-        } else {
-            score += 14;
-            score -= face.centerOffset * 15;
-        }
+        score += face.detected ? (14 - face.centerOffset * 15) : -30;
     }
-
-    return {
-        score,
-        brightness: basic.brightness,
-        sharpness: basic.sharpness,
-        face
-    };
+    return { score, brightness: basic.brightness, sharpness: basic.sharpness, face };
 }
 
-function drawCurrentFrameToCanvas(canvas, video) {
-    canvas.width = video.videoWidth;
+function drawFrameToCanvas(canvas, video) {
+    canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 }
 
-async function captureBestFrameFromBurst(video, frameCount = BURST_FRAME_COUNT) {
-    const canvas = photoCanvas;
+async function captureBestFrame(video, frameCount = BURST_FRAME_COUNT) {
     const frames = [];
-
     for (let i = 0; i < frameCount; i++) {
-        drawCurrentFrameToCanvas(canvas, video);
-        const metrics = await evaluateCanvasQuality(canvas);
-        const dataUrl = canvas.toDataURL('image/png');
-        frames.push({ dataUrl, metrics });
-
-        if (i < frameCount - 1) {
-            await wait(BURST_FRAME_DELAY_MS);
-        }
+        drawFrameToCanvas(photoCanvas, video);
+        const metrics = await evaluateCanvasQuality(photoCanvas);
+        frames.push({ dataUrl: photoCanvas.toDataURL('image/png'), metrics });
+        if (i < frameCount - 1) await wait(BURST_FRAME_DELAY_MS);
     }
-
     frames.sort((a, b) => b.metrics.score - a.metrics.score);
     return frames[0];
 }
 
-// Initialize camera
-async function initCamera() {
-    console.log('initCamera called');
-
-    // Check if the origin is secure (Localhost or HTTPS)
-    const isSecureOrigin = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    if (!isSecureOrigin) {
-        console.warn('Camera may not work on non-secure origin:', location.origin);
-        alert('⚠️ Camera access requires a secure connection (HTTPS or Localhost). Please check your browser address bar.');
-    }
-
-    try {
-        // Try with more basic constraints first for better compatibility
-        const constraints = {
-            video: true
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        console.log('Camera stream obtained:', stream.id);
-        videoStream = stream;
-        cameraFeed.srcObject = stream;
-        updateCameraFlipUI();
-
-        // Explicitly set muted again by code
-        cameraFeed.muted = true;
-
-        // Explicitly call play to handle browsers that block autoplay
-        cameraFeed.onloadedmetadata = () => {
-            console.log('Video metadata loaded, playing...');
-            cameraFeed.play().catch(e => console.error('Error playing video:', e));
-        };
-
-        cameraError.style.display = 'none';
-        captureBtn.disabled = false;
-
-    } catch (error) {
-        console.error('Camera access error:', error);
-        cameraError.style.display = 'block';
-
-        let errorMsg = '⚠️ Camera access denied. Please allow camera permissions and refresh.';
-        if (error.name === 'NotAllowedError') {
-            errorMsg = '⚠️ Camera access denied by user. Please enable it in browser settings and refresh.';
-        } else if (error.name === 'NotFoundError') {
-            errorMsg = '⚠️ No camera found on this device.';
-        } else if (error.name === 'NotReadableError') {
-            errorMsg = '⚠️ Camera is already in use by another application.';
-        }
-
-        cameraError.innerHTML = `<p>${errorMsg}</p>`;
-        captureBtn.disabled = true;
-    }
-}
-
-// Setup event listeners
-function setupEventListeners() {
-    // Auth
-    loginBtn.addEventListener('click', () => authenticate('login'));
-    signupBtn.addEventListener('click', () => authenticate('signup'));
-    logoutBtn.addEventListener('click', logout);
-
-    // Capture photo
-    captureBtn.addEventListener('click', capturePhoto);
-
-    // Character selection
-    characterCards.forEach(card => {
-        card.addEventListener('click', () => selectCharacter(card));
-    });
-
-    // Retake buttons
-    retakeBtn1.addEventListener('click', retakePhoto);
-    retakeBtn2.addEventListener('click', retakePhoto);
-
-
-
-    // File upload
-    uploadBtn.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', handleFileUpload);
-
-    updateCameraFlipUI();
-}
-
-function updateCameraFlipUI() {
-    if (!cameraFeed) return;
-    cameraFeed.classList.add('flipped');
-}
-
-// Handle file upload fallback
-function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function (event) {
-        capturedPhoto = event.target.result;
-        capturedPreview.src = capturedPhoto;
-
-        // Stop camera stream if active
-        if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop());
-        }
-
-        // Switch to character selection screen
-        switchScreen('character');
-    };
-    reader.readAsDataURL(file);
-}
-
-// Capture photo from video stream
+// ── Capture Photo ──────────────────────────────────────────
 async function capturePhoto() {
-    const video = cameraFeed;
-
-    if (!video.videoWidth || !video.videoHeight) {
-        alert('Camera is not ready yet. Please wait a second and try again.');
+    if (!cameraFeed.videoWidth || !cameraFeed.videoHeight) {
+        alert('Camera is not ready yet. Please wait and try again.');
         return;
     }
-
     const originalLabel = captureBtn.innerHTML;
     captureBtn.disabled = true;
-    captureBtn.innerHTML = '<span class="btn-icon">...</span> Capturing...';
+    captureBtn.innerHTML = '<span class="btn-icon">⏳</span> Capturing...';
 
     try {
-        const bestFrame = await captureBestFrameFromBurst(video);
-
-        capturedPhoto = bestFrame.dataUrl;
+        const best = await captureBestFrame(cameraFeed);
+        capturedPhoto = best.dataUrl;
         capturedPreview.src = capturedPhoto;
-
-        // Stop camera stream
-        if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop());
-        }
-
-        // Switch to character selection screen
+        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
         switchScreen('character');
-    } catch (error) {
-        console.error('Capture failed:', error);
+    } catch (err) {
+        console.error('Capture failed:', err);
         alert('Could not capture photo. Please try again.');
     } finally {
         captureBtn.innerHTML = originalLabel;
@@ -431,160 +187,135 @@ async function capturePhoto() {
     }
 }
 
-// Select character
-function selectCharacter(card) {
-    // Remove previous selection
-    characterCards.forEach(c => c.classList.remove('selected'));
-
-    // Mark as selected
-    card.classList.add('selected');
-    selectedCharacter = card.dataset.character;
-
-    // Start face swap process after short delay
-    setTimeout(() => {
-        performFaceSwap();
-    }, 500);
+// ── File Upload ────────────────────────────────────────────
+function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        capturedPhoto = ev.target.result;
+        capturedPreview.src = capturedPhoto;
+        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+        switchScreen('character');
+    };
+    reader.readAsDataURL(file);
 }
 
-// Perform face swap with polling
+// ── Gender Toggle ──────────────────────────────────────────
+function setGender(gender) {
+    const btnMale   = document.getElementById('btn-male');
+    const btnFemale = document.getElementById('btn-female');
+    const gridMale  = document.getElementById('grid-male');
+    const gridFemale = document.getElementById('grid-female');
+
+    if (gender === 'male') {
+        btnMale.className   = 'gender-btn active';
+        btnFemale.className = 'gender-btn inactive';
+        gridMale.style.display   = 'grid';
+        gridFemale.style.display = 'none';
+    } else {
+        btnMale.className   = 'gender-btn inactive';
+        btnFemale.className = 'gender-btn active';
+        gridMale.style.display   = 'none';
+        gridFemale.style.display = 'grid';
+    }
+
+    // Clear selection when toggling
+    characterCards.forEach(c => c.classList.remove('selected'));
+    selectedCharacter = null;
+}
+
+// ── Character Selection ────────────────────────────────────
+function selectCharacter(card) {
+    characterCards.forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedCharacter = card.dataset.character;
+    setTimeout(() => performFaceSwap(), 500);
+}
+
+// ── Face Swap ─────────────────────────────────────────────
 async function performFaceSwap() {
-    console.log('performFaceSwap called');
-    console.log('capturedPhoto:', capturedPhoto ? 'exists' : 'null');
-    console.log('selectedCharacter:', selectedCharacter);
-
     if (!capturedPhoto || !selectedCharacter) {
-        alert('Please capture a photo and select a character');
+        alert('Please capture a photo and select a character.');
         return;
     }
-
     if (!isValidImageDataUrl(capturedPhoto)) {
-        alert('Your photo data is invalid. Please retake or upload the photo again.');
+        alert('Your photo data is invalid. Please retake or upload again.');
         return;
     }
 
-    // Switch to processing screen
     switchScreen('processing');
     updateLoadingText('Uploading your photo...');
 
     try {
-        // Step 1: Start face swap (upload to Cloudinary + start Replicate)
-        console.log('Sending request to /swap-face...');
         const response = await fetch('/swap-face', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 child_photo: capturedPhoto,
                 character: selectedCharacter
             })
         });
 
-        console.log('Response received:', response.status);
-
         const data = await parseJsonResponse(response);
 
-        if (response.status === 401) {
-            handleUnauthorized();
-            return;
-        }
-
         if (!response.ok) {
-            if (response.status === 402 && data && data.user) {
-                updateSessionBar(data.user);
-            }
-            throw new Error((data && data.error) || `Face swap failed (HTTP ${response.status})`);
+            throw new Error((data && data.error) || `Request failed (HTTP ${response.status})`);
         }
 
         if (!data || !data.prediction_id) {
-            throw new Error('Server did not return a prediction id');
+            throw new Error('Server did not return a prediction ID.');
         }
-        const predictionId = data.prediction_id;
-        if (data.model) {
-            console.log('Model used:', data.model);
-        }
-        if (data.user) {
-            updateSessionBar(data.user);
-        }
-        console.log('Prediction ID:', predictionId);
 
-        // Step 2: Poll for completion
-        updateLoadingText('Creating your traditional photo...');
+        const predictionId = data.prediction_id;
+        updateLoadingText('AI is generating your character...');
+
         const resultUrl = await pollForResult(predictionId);
 
         if (resultUrl) {
-            // Display result
             resultImage.src = resultUrl;
-
-            // Generate QR code
             generateQRCode(resultUrl);
-
             switchScreen('result');
         } else {
-            throw new Error('Failed to generate result');
+            throw new Error('Failed to generate result image.');
         }
 
     } catch (error) {
         console.error('Face swap error:', error);
-
         let message = error && error.message ? error.message : 'Unknown error';
         if (message === 'Failed to fetch') {
-            message = 'Cannot connect to the server. Check that Flask is running on http://localhost:5000 and try again.';
+            message = 'Cannot connect to server. Make sure Flask is running and try again.';
         }
-
-        alert(`Sorry, something went wrong: ${message}\nPlease try again.`);
+        alert(`Something went wrong:\n${message}\n\nPlease try again.`);
         switchScreen('character');
     }
 }
 
-// Poll for prediction result
+// ── Polling ────────────────────────────────────────────────
 async function pollForResult(predictionId, maxAttempts = 60) {
     let attempts = 0;
 
     while (attempts < maxAttempts) {
         try {
             const response = await fetch(`/check-status/${predictionId}`);
-
-            if (response.status === 401) {
-                handleUnauthorized();
-                throw new Error('Unauthorized');
-            }
-
-            if (!response.ok) {
-                throw new Error('Failed to check status');
-            }
+            if (!response.ok) throw new Error('Failed to check status');
 
             const data = await parseJsonResponse(response);
-            if (!data) {
-                throw new Error('Empty status response from server');
-            }
+            if (!data) throw new Error('Empty status response from server');
 
             const status = data.status;
-
             console.log(`[Poll ${attempts + 1}] Status: ${status}`);
 
-            if (status === 'succeeded') {
-                console.log('Generation complete!');
-                if (data.model) {
-                    console.log('Completed with model:', data.model);
-                }
-                return data.result_url;
-            } else if (status === 'failed') {
-                throw new Error(data.error || 'Generation failed');
-            }
+            if (status === 'succeeded') return data.result_url;
+            if (status === 'failed')    throw new Error(data.error || 'Generation failed');
 
-            // Update loading text based on progress
             const elapsed = attempts * 2;
-            if (elapsed < 10) {
-                updateLoadingText('Starting AI processing...');
-            } else if (elapsed < 20) {
-                updateLoadingText('Analyzing your face...');
-            } else {
-                updateLoadingText('Almost done, creating your traditional photo...');
-            }
+            if (elapsed < 10)       updateLoadingText('Starting AI processing...');
+            else if (elapsed < 25)  updateLoadingText('Analyzing your medical personality...');
+            else if (elapsed < 45)  updateLoadingText('Adding the finishing touches...');
+            else                    updateLoadingText('Almost done...');
 
-            // Wait 2 seconds before next poll
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await wait(2000);
             attempts++;
 
         } catch (error) {
@@ -593,123 +324,67 @@ async function pollForResult(predictionId, maxAttempts = 60) {
         }
     }
 
-    throw new Error('Timeout: Generation took too long');
+    throw new Error('Timeout: AI took too long. Please try again.');
 }
 
-// Update loading text
-function updateLoadingText(text) {
-    const loadingText = document.querySelector('.loading-text');
-    if (loadingText) {
-        loadingText.textContent = text;
-    }
-}
-
-// Generate QR code for result image
+// ── QR Code ────────────────────────────────────────────────
 async function generateQRCode(imageUrl) {
     try {
-        console.log('Generating QR code for:', imageUrl);
-
         const response = await fetch('/generate-qr', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                image_url: imageUrl
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_url: imageUrl })
         });
-
-        if (!response.ok) {
-            throw new Error('Failed to generate QR code');
-        }
-
+        if (!response.ok) return;
         const data = await response.json();
-        const qrCodeImg = document.getElementById('qr-code');
-
-        if (qrCodeImg && data.qr_code) {
-            qrCodeImg.src = data.qr_code;
-            qrCodeImg.style.display = 'block';
-            console.log('QR code displayed successfully');
+        const qrImg = document.getElementById('qr-code');
+        if (qrImg && data.qr_code) {
+            qrImg.src = data.qr_code;
+            qrImg.style.display = 'block';
         }
-
-    } catch (error) {
-        console.error('QR code generation error:', error);
-        // Don't show error to user, QR is optional feature
+    } catch (err) {
+        console.error('QR generation failed:', err);
     }
 }
 
-// Retake photo
+// ── Retake ─────────────────────────────────────────────────
 function retakePhoto() {
-    // Reset state
-    capturedPhoto = null;
+    capturedPhoto     = null;
     selectedCharacter = null;
-
-    // Remove character selections
     characterCards.forEach(c => c.classList.remove('selected'));
-
-    // Restart camera
     initCamera();
-
-    // Switch back to camera screen
     switchScreen('camera');
 }
 
-
-
-// Switch between screens
+// ── Screen Switcher ────────────────────────────────────────
 function switchScreen(screen) {
-    // Hide all screens
-    authScreen.classList.remove('active');
-    cameraScreen.classList.remove('active');
-    characterScreen.classList.remove('active');
-    processingScreen.classList.remove('active');
-    resultScreen.classList.remove('active');
+    [cameraScreen, characterScreen, processingScreen, resultScreen]
+        .forEach(s => s.classList.remove('active'));
 
-    // Show selected screen
-    switch (screen) {
-        case 'auth':
-            authScreen.classList.add('active');
-            break;
-        case 'camera':
-            cameraScreen.classList.add('active');
-            break;
-        case 'character':
-            characterScreen.classList.add('active');
-            break;
-        case 'processing':
-            processingScreen.classList.add('active');
-            break;
-        case 'result':
-            resultScreen.classList.add('active');
-            break;
-    }
-
-    currentScreen = screen;
+    const map = {
+        camera:     cameraScreen,
+        character:  characterScreen,
+        processing: processingScreen,
+        result:     resultScreen,
+    };
+    if (map[screen]) map[screen].classList.add('active');
 }
 
-// Cleanup on page unload
+// ── Event Listeners ────────────────────────────────────────
+function setupEventListeners() {
+    captureBtn.addEventListener('click', capturePhoto);
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', handleFileUpload);
+
+    characterCards.forEach(card => {
+        card.addEventListener('click', () => selectCharacter(card));
+    });
+
+    retakeBtn1.addEventListener('click', retakePhoto);
+    retakeBtn2.addEventListener('click', retakePhoto);
+}
+
+// ── Cleanup ────────────────────────────────────────────────
 window.addEventListener('beforeunload', () => {
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
+    if (videoStream) videoStream.getTracks().forEach(t => t.stop());
 });
-
-// Gender Toggle Logic
-function setGender(gender) {
-    const btnBoy = document.getElementById('btn-boy');
-    const btnGirl = document.getElementById('btn-girl');
-    const gridBoy = document.getElementById('grid-boy');
-    const gridGirl = document.getElementById('grid-girl');
-    
-    if (gender === 'boy') {
-        btnBoy.className = 'btn btn-primary';
-        btnGirl.className = 'btn btn-secondary';
-        gridBoy.style.display = 'grid';
-        gridGirl.style.display = 'none';
-    } else {
-        btnBoy.className = 'btn btn-secondary';
-        btnGirl.className = 'btn btn-primary';
-        gridBoy.style.display = 'none';
-        gridGirl.style.display = 'grid';
-    }
-}

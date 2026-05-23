@@ -185,11 +185,15 @@ def _get_fallback_model(primary_model: str) -> Optional[str]:
 
 
 def _build_nano_banana_prompt(character: str, style_config: Optional[Dict[str, Any]] = None) -> str:
+    # If the character style has a full_prompt, use it as-is (bypasses shared constraints).
+    if style_config and isinstance(style_config.get('full_prompt'), str) and style_config['full_prompt'].strip():
+        return style_config['full_prompt'].strip()
+
     shared_constraints = (
-        "Identity lock: keep the exact same child face from the input photo "
-        "(same eyes, nose, mouth, jawline, skin tone, and natural age). "
-        "Do not change facial structure. Keep the child looking 8-12 years old. "
-        "Keep expression natural and friendly. Photorealistic, high detail, natural skin texture, "
+        "Identity lock: keep the exact same face from the input photo "
+        "(same eyes, nose, mouth, jawline, skin tone, and natural age appearance). "
+        "Do not change facial structure or age. "
+        "Photorealistic, high detail, natural skin texture, "
         "clean lighting, sharp focus. No text, no watermark, no logo, no cartoon, no anime, "
         "no extra people, no face distortion."
     )
@@ -206,9 +210,7 @@ def _build_nano_banana_prompt(character: str, style_config: Optional[Dict[str, A
             if isinstance(loaded_shared, str) and loaded_shared.strip():
                 shared_constraints = loaded_shared.strip()
             key = (character or '').strip().lower()
-            # Fallback for character keys like doctor_boy -> doctor.
-            if key not in prompts and '_' in key:
-                key = key.split('_', 1)[0]
+            # Only exact key match — avoid false fallbacks for new doctor keys.
             loaded_prompt = prompts.get(key)
             if isinstance(loaded_prompt, str) and loaded_prompt.strip():
                 job_prompt = loaded_prompt.strip()
@@ -217,8 +219,8 @@ def _build_nano_banana_prompt(character: str, style_config: Optional[Dict[str, A
 
     if not job_prompt:
         job_prompt = (
-            f"Edit this child photo into a realistic {character.replace('_', ' ')} portrait. "
-            "Dress the child in role-appropriate professional clothing and set a matching real-world background."
+            f"Edit this photo into a realistic {character.replace('_', ' ')} portrait. "
+            "Dress the person in role-appropriate professional clothing and set a matching real-world background."
         )
 
     return f"{job_prompt} {shared_constraints}"
@@ -797,7 +799,215 @@ distorted face, cartoon, anime, exaggerated features, deformed''',
         'prompt': 'A photorealistic portrait of a young Saudi Arabian child (girl), playing as a professional football player, cinematic lighting.',
         'negative_prompt': 'cartoon, drawing, anime, low quality, adult face, aging, distorted, ugly',
     },
+    # ── OB-GYN Doctor Characters ────────────────────────────────────────────────
+    'before_residency_male': {
+        'sentence': 'Smiling before discovering labor ward reality.',
+        'full_prompt': (
+            "Transform this male doctor's photo into a portrait of a bright-eyed, fresh male medical graduate "
+            "on his very first day. He wears a spotless white coat and proudly holds a stethoscope, "
+            "wearing a wide optimistic smile full of hope. Background: a clean, modern hospital corridor "
+            "with soft natural daylight. Magazine cover style, cinematic lighting, photorealistic, "
+            "high-detail professional medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'before_residency_female': {
+        'sentence': 'Smiling before discovering labor ward reality.',
+        'full_prompt': (
+            "Transform this female doctor's photo into a portrait of a bright-eyed, fresh female medical graduate "
+            "on her very first day. She wears a spotless white coat (with optional hijab if appropriate), "
+            "proudly holds a stethoscope, wearing a wide optimistic smile full of hope. "
+            "Background: a clean, modern hospital corridor with soft natural daylight. "
+            "Magazine cover style, cinematic lighting, photorealistic, "
+            "high-detail professional medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'after_24h_call_male': {
+        'sentence': 'Running on 2% battery.',
+        'full_prompt': (
+            "Transform this male doctor's photo to show extreme exhaustion after a brutal 24-hour hospital shift. "
+            "Deep dark circles under heavy tired eyes, slightly disheveled scrubs, holding an empty "
+            "crushed coffee cup. Background: a hospital break room under harsh fluorescent lighting at night. "
+            "Realistically exhausted yet still standing. Cinematic moody lighting, photorealistic, "
+            "high-detail professional medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'after_24h_call_female': {
+        'sentence': 'Running on 2% battery.',
+        'full_prompt': (
+            "Transform this female doctor's photo to show extreme exhaustion after a brutal 24-hour hospital shift. "
+            "Deep dark circles under heavy tired eyes, slightly disheveled scrubs and hijab (if appropriate), "
+            "holding an empty crushed coffee cup. Background: a hospital break room under harsh fluorescent "
+            "lighting at night. Realistically exhausted yet still standing. Cinematic moody lighting, "
+            "photorealistic, high-detail professional medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'emergency_csection_male': {
+        'sentence': 'Activated survival mode.',
+        'full_prompt': (
+            "Transform this male doctor's photo into an OB-GYN surgeon in the middle of an emergency C-section. "
+            "Full surgical scrubs, surgical cap, mask pulled down to chin revealing intense laser-focused eyes "
+            "and an expression of total concentration and calm under pressure. "
+            "Background: bright surgical operating room lights, sterile OR environment. "
+            "High-stakes adrenaline atmosphere, dramatic cinematic lighting, photorealistic, "
+            "high-detail professional medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'emergency_csection_female': {
+        'sentence': 'Activated survival mode.',
+        'full_prompt': (
+            "Transform this female doctor's photo into an OB-GYN surgeon in the middle of an emergency C-section. "
+            "Full surgical scrubs, surgical cap covering hair (and hijab if appropriate), mask pulled down to chin "
+            "revealing intense laser-focused eyes and an expression of total concentration and calm under pressure. "
+            "Background: bright surgical operating room lights, sterile OR environment. "
+            "High-stakes adrenaline atmosphere, dramatic cinematic lighting, photorealistic, "
+            "high-detail professional medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'after_coffee_male': {
+        'sentence': 'Vital signs restored.',
+        'full_prompt': (
+            "Transform this male doctor's photo to show a visibly refreshed and revitalized doctor "
+            "right after drinking his first coffee of the day. Warm satisfied smile, holding a steaming "
+            "coffee cup with both hands, clearly renewed energy in his posture and expression. "
+            "Background: cozy hospital break room with warm soft lighting. "
+            "Photorealistic lifestyle medical photography, cinematic warm tones, professional. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'after_coffee_female': {
+        'sentence': 'Vital signs restored.',
+        'full_prompt': (
+            "Transform this female doctor's photo to show a visibly refreshed and revitalized doctor "
+            "right after drinking her first coffee of the day. Warm satisfied smile, holding a steaming "
+            "coffee cup with both hands, clearly renewed energy in her posture and expression. "
+            "Background: cozy hospital break room with warm soft lighting. "
+            "Photorealistic lifestyle medical photography, cinematic warm tones, professional. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'coffee_consultant_male': {
+        'sentence': 'Fueled by caffeine and confidence.',
+        'full_prompt': (
+            "Transform this male doctor's photo into a supremely confident senior OB-GYN consultant "
+            "who runs entirely on caffeine. Sharp pressed white coat, commanding and energetic posture, "
+            "holding a large coffee cup raised triumphantly like a trophy, bold confident smile. "
+            "Background: sleek modern hospital corridor or office. Power stance, full authority. "
+            "Cinematic professional medical photography, dramatic lighting. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'coffee_consultant_female': {
+        'sentence': 'Fueled by caffeine and confidence.',
+        'full_prompt': (
+            "Transform this female doctor's photo into a supremely confident senior OB-GYN consultant "
+            "who runs entirely on caffeine. Sharp pressed white coat, commanding and energetic posture, "
+            "holding a large coffee cup raised triumphantly like a trophy, bold confident smile. "
+            "Background: sleek modern hospital corridor or office. Power stance, full authority. "
+            "Cinematic professional medical photography, dramatic lighting. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'delivery_commander_male': {
+        'sentence': 'Born to manage labor ward drama.',
+        'full_prompt': (
+            "Transform this male doctor's photo into a commanding OB-GYN delivery room chief who owns every situation. "
+            "Strong confident posture with arms crossed or hands ready, calm but intensely authoritative expression, "
+            "surgical scrubs or white coat, surrounded by the controlled chaos of a busy labor ward. "
+            "Background: delivery room or labor ward with medical equipment visible. "
+            "Leadership aura radiating, dramatic cinematic lighting, photorealistic medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'delivery_commander_female': {
+        'sentence': 'Born to manage labor ward drama.',
+        'full_prompt': (
+            "Transform this female doctor's photo into a commanding OB-GYN delivery room chief who owns every situation. "
+            "Strong confident posture with arms crossed or hands ready, calm but intensely authoritative expression, "
+            "surgical scrubs or white coat, surrounded by the controlled chaos of a busy labor ward. "
+            "Background: delivery room or labor ward with medical equipment visible. "
+            "Leadership aura radiating, dramatic cinematic lighting, photorealistic medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'documentation_ninja_male': {
+        'sentence': 'Fights unfinished notes daily.',
+        'full_prompt': (
+            "Transform this male doctor's photo into a documentation-obsessed OB-GYN doctor surrounded by "
+            "towering stacks of medical charts, papers, and printed lab results. A glowing EMR computer screen "
+            "full of unfinished notes dominates the background. Slightly overwhelmed but stubbornly determined "
+            "expression, optional glasses perched on nose. Hospital workstation or nurse station environment. "
+            "Realistic, slightly dramatic, slightly humorous tone. Photorealistic medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'documentation_ninja_female': {
+        'sentence': 'Fights unfinished notes daily.',
+        'full_prompt': (
+            "Transform this female doctor's photo into a documentation-obsessed OB-GYN doctor surrounded by "
+            "towering stacks of medical charts, papers, and printed lab results. A glowing EMR computer screen "
+            "full of unfinished notes dominates the background. Slightly overwhelmed but stubbornly determined "
+            "expression, optional glasses perched on nose. Hospital workstation or nurse station environment. "
+            "Realistic, slightly dramatic, slightly humorous tone. Photorealistic medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'nightshift_survivor_male': {
+        'sentence': "Hasn't seen sunlight in days.",
+        'full_prompt': (
+            "Transform this male doctor's photo into a night-shift survival legend who hasn't seen daylight "
+            "in days. Pale, slightly hollowed face with haunted but resilient eyes that have seen too much. "
+            "Wrinkled scrubs, tired posture but still standing with quiet pride. "
+            "Background: a dark empty hospital corridor at 3am, minimal cold blue-tinted fluorescent lighting, "
+            "eerie quiet atmosphere. Brave against all odds. Dramatic moody cinematic lighting, "
+            "photorealistic medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
+    'nightshift_survivor_female': {
+        'sentence': "Hasn't seen sunlight in days.",
+        'full_prompt': (
+            "Transform this female doctor's photo into a night-shift survival legend who hasn't seen daylight "
+            "in days. Pale, slightly hollowed face with haunted but resilient eyes that have seen too much. "
+            "Wrinkled scrubs and hijab (if appropriate), tired posture but still standing with quiet pride. "
+            "Background: a dark empty hospital corridor at 3am, minimal cold blue-tinted fluorescent lighting, "
+            "eerie quiet atmosphere. Brave against all odds. Dramatic moody cinematic lighting, "
+            "photorealistic medical photography. "
+            "Keep the exact same face, eyes, nose, mouth, jawline, and skin tone from the input photo. "
+            "Do not change facial structure. No cartoon, no anime, no watermark, no text overlay."
+        ),
+    },
 }
+
+
+def get_character_sentence(character: Optional[str]) -> Optional[str]:
+    """Return the caption sentence for a given character key, or None if not found."""
+    if not character:
+        return None
+    style = CHARACTER_STYLES.get(character.lower())
+    if not style:
+        return None
+    return style.get('sentence')
 
 
 def start_face_generation(

@@ -4,53 +4,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream Job Photo Booth 🚀</title>
+    <title>What Kind of OB-GYN Are You? 👨‍⚕️</title>
+    <meta name="description" content="A fun AI-powered activity for OB-GYN doctors. Take a selfie and discover your doctor character!">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
     <div class="container">
-        <div id="session-bar" class="session-bar" style="display: none;">
-            <span id="session-email"></span>
-            <span id="session-uses"></span>
-            <button id="logout-btn" class="btn btn-secondary">Logout</button>
-        </div>
 
-        <!-- Screen 0: Auth -->
-        <div id="auth-screen" class="screen active">
+        <!-- Screen 1: Camera -->
+        <div id="camera-screen" class="screen active">
             <div class="header">
-                <h1>Dream Job Booth Access</h1>
-                <p>Login or sign up with your email and password.</p>
-            </div>
-
-            <div class="auth-box">
-                <input type="email" id="auth-email" class="auth-input" placeholder="Enter your email address">
-                <input type="password" id="auth-password" class="auth-input" placeholder="Enter your password">
-                <div class="controls">
-                    <button id="login-btn" class="btn btn-primary">Login</button>
-                    <button id="signup-btn" class="btn btn-secondary">Sign Up</button>
-                </div>
-                <p id="auth-message" class="auth-message"></p>
-                <p class="auth-message"><a href="/admin">Go to Admin Page</a></p>
-            </div>
-        </div>
-
-        <!-- Screen 1: Camera View -->
-        <div id="camera-screen" class="screen">
-            <div class="header">
-                <h1>📸 Dream Job Booth</h1>
-                <p>Position yourself and smile!</p>
+                <div class="header-badge">🏥 OB-GYN Activity</div>
+                <h1>What Kind of OB-GYN Are You?</h1>
+                <p>Take a selfie and let AI reveal your doctor personality!</p>
             </div>
 
             <div class="camera-container">
                 <video id="camera-feed" autoplay playsinline muted></video>
                 <canvas id="photo-canvas" style="display: none;"></canvas>
+                <div class="camera-overlay">
+                    <div class="camera-corner tl"></div>
+                    <div class="camera-corner tr"></div>
+                    <div class="camera-corner bl"></div>
+                    <div class="camera-corner br"></div>
+                </div>
+            </div>
+
+            <div id="camera-error" class="error-message" style="display: none;">
+                <p>⚠️ Camera access denied. Please allow camera permissions and refresh.</p>
             </div>
 
             <div class="controls">
                 <button id="capture-btn" class="btn btn-primary">
                     <span class="btn-icon">📸</span>
-                    Capture Photo
+                    Take Selfie
                 </button>
                 <button id="upload-btn" class="btn btn-secondary">
                     <span class="btn-icon">📁</span>
@@ -58,79 +46,112 @@
                 </button>
                 <input type="file" id="file-input" accept="image/*" style="display: none;">
             </div>
-
-            <div id="camera-error" class="error-message" style="display: none;">
-                <p>⚠️ Camera access denied. Please allow camera permissions and refresh.</p>
-            </div>
-
         </div>
 
         <!-- Screen 2: Character Selection -->
         <div id="character-screen" class="screen">
             <div class="header">
-                <h1>🚀 Choose Your Dream Job!</h1>
-                <p>What do you want to be when you grow up?</p>
+                <div class="header-badge">🩺 Choose Your Character</div>
+                <h1>Which OB-GYN Are You?</h1>
+                <p>Select the character that speaks to your soul today.</p>
             </div>
 
             <div class="preview-container">
                 <img id="captured-preview" src="" alt="Your photo">
             </div>
 
-            <div class="gender-toggle" style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px;">
-                <button id="btn-boy" class="btn btn-primary" onclick="setGender('boy')" style="border-radius: 25px; padding: 10px 30px;">👦 Boy</button>
-                <button id="btn-girl" class="btn btn-secondary" onclick="setGender('girl')" style="border-radius: 25px; padding: 10px 30px;">👧 Girl</button>
+            <!-- Gender Toggle -->
+            <div class="gender-toggle">
+                <button class="gender-btn active" id="btn-male" onclick="setGender('male')">👨‍⚕️ Male</button>
+                <button class="gender-btn inactive" id="btn-female" onclick="setGender('female')">👩‍⚕️ Female</button>
             </div>
 
-            <div class="job-grid" id="grid-boy">
-                <div class="character-card" data-character="doctor_boy"><h3>🩺 Doctor</h3></div>
-                <div class="character-card" data-character="engineer_boy"><h3>🏗️ Engineer</h3></div>
-                <div class="character-card" data-character="astronaut_boy"><h3>🚀 Astronaut</h3></div>
-                <div class="character-card" data-character="police_boy"><h3>👮 Police Officer</h3></div>
-                <div class="character-card" data-character="firefighter_boy"><h3>🚒 Firefighter</h3></div>
-                <div class="character-card" data-character="teacher_boy"><h3>👨‍🏫 Teacher</h3></div>
-                <div class="character-card" data-character="lawyer_boy"><h3>⚖️ Lawyer</h3></div>
-                <div class="character-card" data-character="software_engineer"><h3>💻 Software Eng.</h3></div>
-                <div class="character-card" data-character="nurse_boy"><h3>🏥 Nurse</h3></div>
-                <div class="character-card" data-character="architect_boy"><h3>📐 Architect</h3></div>
-                <div class="character-card" data-character="businessman_boy"><h3>💼 Businessman</h3></div>
-                <div class="character-card" data-character="cook_boy"><h3>🍳 Cook</h3></div>
-                <div class="character-card" data-character="driver_boy"><h3>🚗 Driver</h3></div>
-                <div class="character-card" data-character="fashion_designer_boy"><h3>👗 Fashion Designer</h3></div>
-                <div class="character-card" data-character="farmer_boy"><h3>🌾 Farmer</h3></div>
-                <div class="character-card" data-character="flight_attendant_boy"><h3>✈️ Flight Attendant</h3></div>
-                <div class="character-card" data-character="journalist_boy"><h3>📰 Journalist</h3></div>
-                <div class="character-card" data-character="manager_boy"><h3>📊 Manager</h3></div>
-                <div class="character-card" data-character="mechanic_boy"><h3>🔧 Mechanic</h3></div>
-                <div class="character-card" data-character="photographer_boy"><h3>📷 Photographer</h3></div>
-                <div class="character-card" data-character="pilot_boy"><h3>🛩️ Pilot</h3></div>
-                <div class="character-card" data-character="waiter_boy"><h3>🍽️ Waiter</h3></div>
-                <div class="character-card" data-character="football_player_boy"><h3>⚽ Football Player</h3></div>
+            <!-- Male Grid -->
+            <div class="job-grid" id="grid-male">
+                <div class="character-card" data-character="before_residency_male">
+                    <span class="card-emoji">🌟</span>
+                    <h3>Before OB Residency</h3>
+                    <p class="card-sentence">"Smiling before discovering labor ward reality."</p>
+                </div>
+                <div class="character-card" data-character="after_24h_call_male">
+                    <span class="card-emoji">🔋</span>
+                    <h3>After 24-Hour Call</h3>
+                    <p class="card-sentence">"Running on 2% battery."</p>
+                </div>
+                <div class="character-card" data-character="emergency_csection_male">
+                    <span class="card-emoji">⚡</span>
+                    <h3>Emergency C-Section</h3>
+                    <p class="card-sentence">"Activated survival mode."</p>
+                </div>
+                <div class="character-card" data-character="after_coffee_male">
+                    <span class="card-emoji">☕</span>
+                    <h3>After Coffee</h3>
+                    <p class="card-sentence">"Vital signs restored."</p>
+                </div>
+                <div class="character-card" data-character="coffee_consultant_male">
+                    <span class="card-emoji">💪</span>
+                    <h3>Coffee-Powered Consultant</h3>
+                    <p class="card-sentence">"Fueled by caffeine and confidence."</p>
+                </div>
+                <div class="character-card" data-character="delivery_commander_male">
+                    <span class="card-emoji">👑</span>
+                    <h3>Delivery Room Commander</h3>
+                    <p class="card-sentence">"Born to manage labor ward drama."</p>
+                </div>
+                <div class="character-card" data-character="documentation_ninja_male">
+                    <span class="card-emoji">📋</span>
+                    <h3>Documentation Ninja</h3>
+                    <p class="card-sentence">"Fights unfinished notes daily."</p>
+                </div>
+                <div class="character-card" data-character="nightshift_survivor_male">
+                    <span class="card-emoji">🌙</span>
+                    <h3>Night-Shift Survivor</h3>
+                    <p class="card-sentence">"Hasn't seen sunlight in days."</p>
+                </div>
             </div>
 
-            <div class="job-grid" id="grid-girl" style="display: none;">
-                <div class="character-card" data-character="doctor_girl"><h3>🩺 Doctor</h3></div>
-                <div class="character-card" data-character="engineer_girl"><h3>🏗️ Engineer</h3></div>
-                <div class="character-card" data-character="astronaut_girl"><h3>🚀 Astronaut</h3></div>
-                <div class="character-card" data-character="police_girl"><h3>👮‍♀️ Police Officer</h3></div>
-                <div class="character-card" data-character="firefighter_girl"><h3>🚒 Firefighter</h3></div>
-                <div class="character-card" data-character="teacher_girl"><h3>👩‍🏫 Teacher</h3></div>
-                <div class="character-card" data-character="nurse_girl"><h3>🏥 Nurse</h3></div>
-                <div class="character-card" data-character="lawyer_girl"><h3>⚖️ Lawyer</h3></div>
-                <div class="character-card" data-character="software_engineer_girl"><h3>💻 Software Eng.</h3></div>
-                <div class="character-card" data-character="architect_girl"><h3>📐 Architect</h3></div>
-                <div class="character-card" data-character="businesswoman_girl"><h3>💼 Businesswoman</h3></div>
-                <div class="character-card" data-character="cook_girl"><h3>🍳 Cook</h3></div>
-                <div class="character-card" data-character="driver_girl"><h3>🚗 Driver</h3></div>
-                <div class="character-card" data-character="fashion_designer_girl"><h3>👗 Fashion Designer</h3></div>
-                <div class="character-card" data-character="farmer_girl"><h3>🌾 Farmer</h3></div>
-                <div class="character-card" data-character="flight_attendant_girl"><h3>✈️ Flight Attendant</h3></div>
-                <div class="character-card" data-character="journalist_girl"><h3>📰 Journalist</h3></div>
-                <div class="character-card" data-character="manager_girl"><h3>📊 Manager</h3></div>
-                <div class="character-card" data-character="mechanic_girl"><h3>🔧 Mechanic</h3></div>
-                <div class="character-card" data-character="photographer_girl"><h3>📷 Photographer</h3></div>
-                <div class="character-card" data-character="pilot_girl"><h3>🛩️ Pilot</h3></div>
-                <div class="character-card" data-character="waitress_girl"><h3>🍽️ Waitress</h3></div>
-                <div class="character-card" data-character="football_player_girl"><h3>⚽ Football Player</h3></div>
+            <!-- Female Grid -->
+            <div class="job-grid" id="grid-female" style="display: none;">
+                <div class="character-card" data-character="before_residency_female">
+                    <span class="card-emoji">🌟</span>
+                    <h3>Before OB Residency</h3>
+                    <p class="card-sentence">"Smiling before discovering labor ward reality."</p>
+                </div>
+                <div class="character-card" data-character="after_24h_call_female">
+                    <span class="card-emoji">🔋</span>
+                    <h3>After 24-Hour Call</h3>
+                    <p class="card-sentence">"Running on 2% battery."</p>
+                </div>
+                <div class="character-card" data-character="emergency_csection_female">
+                    <span class="card-emoji">⚡</span>
+                    <h3>Emergency C-Section</h3>
+                    <p class="card-sentence">"Activated survival mode."</p>
+                </div>
+                <div class="character-card" data-character="after_coffee_female">
+                    <span class="card-emoji">☕</span>
+                    <h3>After Coffee</h3>
+                    <p class="card-sentence">"Vital signs restored."</p>
+                </div>
+                <div class="character-card" data-character="coffee_consultant_female">
+                    <span class="card-emoji">💪</span>
+                    <h3>Coffee-Powered Consultant</h3>
+                    <p class="card-sentence">"Fueled by caffeine and confidence."</p>
+                </div>
+                <div class="character-card" data-character="delivery_commander_female">
+                    <span class="card-emoji">👑</span>
+                    <h3>Delivery Room Commander</h3>
+                    <p class="card-sentence">"Born to manage labor ward drama."</p>
+                </div>
+                <div class="character-card" data-character="documentation_ninja_female">
+                    <span class="card-emoji">📋</span>
+                    <h3>Documentation Ninja</h3>
+                    <p class="card-sentence">"Fights unfinished notes daily."</p>
+                </div>
+                <div class="character-card" data-character="nightshift_survivor_female">
+                    <span class="card-emoji">🌙</span>
+                    <h3>Night-Shift Survivor</h3>
+                    <p class="card-sentence">"Hasn't seen sunlight in days."</p>
+                </div>
             </div>
 
             <div class="controls">
@@ -144,40 +165,54 @@
         <!-- Screen 3: Processing -->
         <div id="processing-screen" class="screen">
             <div class="header">
-                <h1>✨ Creating Magic</h1>
-                <p>Blending your photo with your dream job outfit...</p>
+                <div class="header-badge">✨ AI is Working</div>
+                <h1>Creating Your Character</h1>
+                <p>Gemini AI is analyzing and transforming your photo...</p>
             </div>
 
             <div class="loading-container">
-                <div class="spinner"></div>
-                <p class="loading-text">Please wait...</p>
+                <div class="spinner-wrapper">
+                    <div class="pulse-ring"></div>
+                    <div class="pulse-ring"></div>
+                    <div class="pulse-ring"></div>
+                    <div class="spinner"></div>
+                </div>
+                <p class="loading-text" id="loading-text">Uploading your photo...</p>
+                <div class="loading-steps">
+                    <div class="step-dot"></div>
+                    <div class="step-dot"></div>
+                    <div class="step-dot"></div>
+                </div>
             </div>
         </div>
 
         <!-- Screen 4: Result -->
         <div id="result-screen" class="screen">
             <div class="header">
-                <h1>🎉 Your Photo is Ready!</h1>
-                <p>Your dream job photo is complete!</p>
+                <div class="header-badge">🎉 Your Character is Ready!</div>
+                <h1>Here You Are, Doctor!</h1>
+                <p>Your AI-generated character card is ready.</p>
             </div>
 
             <div class="result-container">
-                <img id="result-image" src="" alt="Result">
+                <div class="result-frame">
+                    <img id="result-image" src="" alt="Your OB-GYN character">
+                </div>
             </div>
 
-            <div class="qr-container" style="margin: 20px 0; text-align: center;">
-                <p style="font-size: 18px; margin-bottom: 10px;">📱 Scan to download to your phone</p>
-                <img id="qr-code" src="" alt="QR Code"
-                    style="width: 200px; height: 200px; display: none; margin: 0 auto; border: 2px solid #ddd; padding: 10px; background: white;">
+            <div class="qr-section">
+                <p class="qr-title">📱 Scan to save to your phone</p>
+                <img id="qr-code" src="" alt="QR Code to download">
             </div>
 
             <div class="controls">
                 <button id="retake-btn-2" class="btn btn-secondary">
                     <span class="btn-icon">↺</span>
-                    Take Another
+                    Try Another
                 </button>
             </div>
         </div>
+
     </div>
 
     <script src="/static/app.js"></script>
