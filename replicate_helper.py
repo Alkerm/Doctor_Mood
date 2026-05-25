@@ -33,9 +33,9 @@ if REPLICATE_API_TOKEN:
 
 
 GOOGLE_DIRECT_MODELS = {
-    'google/nano-banana': 'gemini-2.0-flash-exp-image-generation',
-    'google/nano-banana-pro': 'gemini-2.0-flash-exp-image-generation',
-    'google/nano-banana-2': 'gemini-2.0-flash-exp-image-generation',
+    'google/nano-banana': 'gemini-2.0-flash-preview-image-generation',
+    'google/nano-banana-pro': 'gemini-2.0-flash-preview-image-generation',
+    'google/nano-banana-2': 'gemini-2.0-flash-preview-image-generation',
 }
 
 SUPPORTED_FACE_SWAP_MODELS = (
