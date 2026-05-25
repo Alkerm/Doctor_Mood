@@ -392,7 +392,7 @@ def _create_google_direct_generation(
 
     source = _download_image_for_google(source_image)
     client = genai.Client(api_key=api_key)
-    config = genai_types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE'])
+    config = genai_types.GenerateContentConfig(response_modalities=['IMAGE'])
     max_attempts = _google_direct_max_attempts()
     last_error: Optional[Exception] = None
 
