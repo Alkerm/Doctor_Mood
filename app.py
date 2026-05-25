@@ -135,7 +135,7 @@ def overlay_sentence_on_image(image_bytes, sentence):
         image = Image.open(BytesIO(image_bytes)).convert('RGB')
         width, height = image.size
 
-        font_size = max(28, width // 20)
+        font_size = max(48, width // 10)
         font = None
         for fp in ['arial.ttf', 'Arial.ttf',
                    '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',

@@ -147,7 +147,13 @@ async function evaluateCanvasQuality(canvas) {
 function drawFrameToCanvas(canvas, video) {
     canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext('2d');
+    // Flip horizontally to undo the mirror effect shown in the preview
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
 }
 
 async function captureBestFrame(video, frameCount = BURST_FRAME_COUNT) {
