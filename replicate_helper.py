@@ -33,9 +33,9 @@ if REPLICATE_API_TOKEN:
 
 
 GOOGLE_DIRECT_MODELS = {
-    'google/nano-banana': 'gemini-2.5-flash-image',
-    'google/nano-banana-pro': 'gemini-3-pro-image-preview',
-    'google/nano-banana-2': 'gemini-3.1-flash-image-preview',
+    'google/nano-banana': 'gemini-2.0-flash-exp-image-generation',
+    'google/nano-banana-pro': 'gemini-2.0-flash-exp-image-generation',
+    'google/nano-banana-2': 'gemini-2.0-flash-exp-image-generation',
 }
 
 SUPPORTED_FACE_SWAP_MODELS = (
@@ -392,20 +392,33 @@ def _create_google_direct_generation(
 
     source = _download_image_for_google(source_image)
     client = genai.Client(api_key=api_key)
-    config = genai_types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE'])
-    max_attempts = _google_direct_max_attempts()
+    # Use IMAGE-only modality — avoids Gemini returning text refusals instead of an image
+    config = genai_types.GenerateContentConfig(response_modalities=['IMAGE'])
+    max_attempts = max(_google_direct_max_attempts(), 3)
     last_error: Optional[Exception] = None
 
     for attempt in range(1, max_attempts + 1):
         try:
             print(f"[Google] Generation attempt {attempt}/{max_attempts}", flush=True)
+            # On retries, simplify the prompt to reduce refusal chance
+            attempt_prompt = prompt if attempt == 1 else (
+                f"Generate a photorealistic portrait of a doctor in a hospital setting. "
+                f"Keep the same face from the input photo. No text, no watermark."
+            )
             response = client.models.generate_content(
                 model=google_model,
-                contents=[prompt, source],
+                contents=[attempt_prompt, source],
                 config=config
             )
             image_bytes = _extract_google_image_bytes(response)
             break
+        except RuntimeError as e:
+            # RuntimeError means Google returned text/nothing — always retry these
+            last_error = e
+            print(f"[Google] Attempt {attempt} got no image: {_safe_error_message(e)}", flush=True)
+            if attempt >= max_attempts:
+                raise
+            time.sleep(min(2 ** (attempt - 1), 4))
         except Exception as e:
             last_error = e
             print(f"[Google] Generation attempt {attempt} failed: {_safe_error_message(e)}", flush=True)
@@ -413,7 +426,7 @@ def _create_google_direct_generation(
                 raise
             time.sleep(min(2 ** (attempt - 1), 4))
     else:
-        raise RuntimeError(f"Google image generation failed: {_safe_error_message(last_error)}")
+        raise RuntimeError(f"Google image generation failed after {max_attempts} attempts: {_safe_error_message(last_error)}")
 
     print(f"[Google] Generated image size: {len(image_bytes)} bytes", flush=True)
     upload_result = cloudinary_helper.upload_temp_image(image_bytes)
