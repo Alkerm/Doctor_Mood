@@ -135,9 +135,7 @@ def overlay_sentence_on_image(image_bytes, sentence):
         image = Image.open(BytesIO(image_bytes)).convert('RGB')
         width, height = image.size
 
-        font_size = max(48, width // 10)
-        font = None
-        for fp in [
+        font_paths = [
             # Linux / Vercel paths
             '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
             '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
@@ -153,26 +151,57 @@ def overlay_sentence_on_image(image_bytes, sentence):
             'arial.ttf', 'Arial.ttf', 'arialbd.ttf',
             'C:/Windows/Fonts/arial.ttf',
             'C:/Windows/Fonts/arialbd.ttf',
-        ]:
+        ]
+
+        # Find a working font path first
+        font_path = None
+        for fp in font_paths:
             try:
-                font = ImageFont.truetype(fp, font_size)
-                print(f"[OVERLAY] Using font: {fp} size {font_size}", flush=True)
+                ImageFont.truetype(fp, 10)
+                font_path = fp
+                print(f"[OVERLAY] Found font: {fp}", flush=True)
                 break
             except Exception:
                 continue
+
+        # Auto-fit: start large and shrink until text fits within 90% of image width
+        max_text_width = int(width * 0.90)
+        font_size = width // 14  # start size
+        min_font_size = max(24, width // 30)
+        font = None
+
+        dummy_img  = Image.new('RGB', (width, height))
+        dummy_draw = ImageDraw.Draw(dummy_img)
+
+        while font_size >= min_font_size:
+            try:
+                if font_path:
+                    candidate = ImageFont.truetype(font_path, font_size)
+                else:
+                    candidate = ImageFont.load_default(size=font_size) if hasattr(ImageFont, 'load_default') else ImageFont.load_default()
+                bbox = dummy_draw.textbbox((0, 0), sentence, font=candidate)
+                text_w = bbox[2] - bbox[0]
+                if text_w <= max_text_width:
+                    font = candidate
+                    break
+            except Exception:
+                pass
+            font_size -= 2
+
         if font is None:
             try:
-                font = ImageFont.load_default(size=font_size)
+                font = ImageFont.load_default(size=min_font_size)
             except TypeError:
                 font = ImageFont.load_default()
 
-        # Measure text
-        dummy_draw = ImageDraw.Draw(image)
-        bbox        = dummy_draw.textbbox((0, 0), sentence, font=font)
-        text_w      = bbox[2] - bbox[0]
-        text_h      = bbox[3] - bbox[1]
-        pad_v       = int(height * 0.025)
-        strip_h     = text_h + pad_v * 2
+        print(f"[OVERLAY] Final font size: {font_size}", flush=True)
+
+        # Measure final text dimensions
+        bbox   = dummy_draw.textbbox((0, 0), sentence, font=font)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+        pad_v  = int(height * 0.03)
+        strip_h = text_h + pad_v * 2
 
         # Draw semi-transparent strip at the bottom
         image_rgba = image.convert('RGBA')
