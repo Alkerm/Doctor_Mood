@@ -33,9 +33,9 @@ if REPLICATE_API_TOKEN:
 
 
 GOOGLE_DIRECT_MODELS = {
-    'google/nano-banana': 'gemini-2.0-flash-preview-image-generation',
-    'google/nano-banana-pro': 'gemini-2.0-flash-preview-image-generation',
-    'google/nano-banana-2': 'gemini-2.0-flash-preview-image-generation',
+    'google/nano-banana': 'gemini-2.5-flash-image',
+    'google/nano-banana-pro': 'gemini-3-pro-image-preview',
+    'google/nano-banana-2': 'gemini-3.1-flash-image-preview',
 }
 
 SUPPORTED_FACE_SWAP_MODELS = (
@@ -392,22 +392,16 @@ def _create_google_direct_generation(
 
     source = _download_image_for_google(source_image)
     client = genai.Client(api_key=api_key)
-    # Use IMAGE-only modality — avoids Gemini returning text refusals instead of an image
-    config = genai_types.GenerateContentConfig(response_modalities=['IMAGE'])
-    max_attempts = max(_google_direct_max_attempts(), 3)
+    config = genai_types.GenerateContentConfig(response_modalities=['TEXT', 'IMAGE'])
+    max_attempts = _google_direct_max_attempts()
     last_error: Optional[Exception] = None
 
     for attempt in range(1, max_attempts + 1):
         try:
             print(f"[Google] Generation attempt {attempt}/{max_attempts}", flush=True)
-            # On retries, simplify the prompt to reduce refusal chance
-            attempt_prompt = prompt if attempt == 1 else (
-                f"Generate a photorealistic portrait of a doctor in a hospital setting. "
-                f"Keep the same face from the input photo. No text, no watermark."
-            )
             response = client.models.generate_content(
                 model=google_model,
-                contents=[attempt_prompt, source],
+                contents=[prompt, source],
                 config=config
             )
             image_bytes = _extract_google_image_bytes(response)
