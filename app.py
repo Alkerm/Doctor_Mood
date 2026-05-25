@@ -137,16 +137,34 @@ def overlay_sentence_on_image(image_bytes, sentence):
 
         font_size = max(48, width // 10)
         font = None
-        for fp in ['arial.ttf', 'Arial.ttf',
-                   '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-                   '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf']:
+        for fp in [
+            # Linux / Vercel paths
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/freefont/FreeSansBold.ttf',
+            '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
+            '/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf',
+            '/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf',
+            '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf',
+            '/usr/share/fonts/dejavu/DejaVuSans.ttf',
+            # Windows paths
+            'arial.ttf', 'Arial.ttf', 'arialbd.ttf',
+            'C:/Windows/Fonts/arial.ttf',
+            'C:/Windows/Fonts/arialbd.ttf',
+        ]:
             try:
                 font = ImageFont.truetype(fp, font_size)
+                print(f"[OVERLAY] Using font: {fp} size {font_size}", flush=True)
                 break
             except Exception:
                 continue
         if font is None:
-            font = ImageFont.load_default()
+            try:
+                font = ImageFont.load_default(size=font_size)
+            except TypeError:
+                font = ImageFont.load_default()
 
         # Measure text
         dummy_draw = ImageDraw.Draw(image)
