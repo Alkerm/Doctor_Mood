@@ -535,9 +535,10 @@ body {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
-        height: 100vh !important;
+        height: 148mm !important;
         padding: 20mm 0 !important;
         background: #fff !important;
+        overflow: hidden !important;
     }
 
     .header, .qr-section, .controls { display: none !important; }
