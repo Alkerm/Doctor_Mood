@@ -536,7 +536,7 @@ body {
         flex-direction: column !important;
         width: 100% !important;
         height: 148mm !important;
-        padding: 20mm 0 !important;
+        padding: 25mm 0 !important;
         background: #fff !important;
         overflow: hidden !important;
     }
@@ -560,7 +560,7 @@ body {
 
     /* Photo */
     .result-container {
-        height: 93mm !important;
+        height: 83mm !important;
         display: flex !important;
         width: 100% !important;
         margin: 0 !important;
