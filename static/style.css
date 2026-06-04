@@ -516,41 +516,47 @@ body {
 
 @media print {
     * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
+
     html, body {
-        width: 100mm !important;
-        height: 148mm !important;
+        width: 100% !important;
+        height: 100% !important;
         background: #fff !important;
         overflow: hidden !important;
     }
+
     .screen { display: none !important; }
+
     #result-screen {
         display: block !important;
-        width: 100mm !important;
-        height: 148mm !important;
-        overflow: hidden !important;
+        width: 100% !important;
+        height: 100% !important;
     }
+
     .header, .qr-section, .controls { display: none !important; }
+
     .result-container {
-        width: 100mm !important;
-        height: 148mm !important;
+        width: 100% !important;
+        height: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         display: block !important;
     }
+
     .result-frame {
-        width: 100mm !important;
-        height: 148mm !important;
+        width: 100% !important;
+        height: 100% !important;
         border: none !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         overflow: hidden !important;
         max-width: none !important;
     }
+
     #result-image {
-        width: 100mm !important;
-        height: 148mm !important;
+        width: 100% !important;
+        height: 100vh !important;
         object-fit: contain !important;
-        background: #ffffff !important;
+        background: #fff !important;
         border-radius: 0 !important;
         display: block !important;
     }
