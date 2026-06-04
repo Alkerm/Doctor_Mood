@@ -507,3 +507,20 @@ body {
     .header h1 { font-size: 22px; }
     .btn { padding: 12px 20px; font-size: 14px; }
 }
+
+/* ── Print ────────────────────────────────────────────────── */
+@media print {
+    body { background: #fff !important; }
+    .screen { display: none !important; }
+    #result-screen { display: flex !important; }
+    .header, .qr-section, .controls { display: none !important; }
+    .result-container { margin: 0 !important; }
+    .result-frame {
+        border: none !important;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+    #result-image { width: 100% !important; border-radius: 0 !important; }
+}
+
