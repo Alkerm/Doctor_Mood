@@ -508,6 +508,11 @@ body {
     .btn { padding: 12px 20px; font-size: 14px; }
 }
 
+/* ── Print elements: hidden on screen ────────────────────── */
+.print-header, .print-footer {
+    display: none;
+}
+
 /* ── Print ────────────────────────────────────────────────── */
 @page {
     size: 100mm 148mm portrait;
@@ -527,24 +532,42 @@ body {
     .screen { display: none !important; }
 
     #result-screen {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column !important;
         width: 100% !important;
-        height: 100% !important;
+        height: 100vh !important;
+        padding: 10mm 0 !important;
+        background: #fff !important;
     }
 
     .header, .qr-section, .controls { display: none !important; }
 
-    .result-container {
+    /* Question above photo */
+    .print-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        height: 10mm !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 11pt !important;
+        font-weight: bold !important;
+        color: #000 !important;
         width: 100% !important;
-        height: 100% !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Photo */
+    .result-container {
+        flex: 1 !important;
+        display: flex !important;
+        width: 100% !important;
         margin: 0 !important;
-        padding: 0 !important;
-        display: block !important;
+        overflow: hidden !important;
     }
 
     .result-frame {
         width: 100% !important;
-        height: 100% !important;
         border: none !important;
         box-shadow: none !important;
         border-radius: 0 !important;
@@ -554,11 +577,25 @@ body {
 
     #result-image {
         width: 100% !important;
-        height: 100vh !important;
+        height: 100% !important;
         object-fit: contain !important;
         background: #fff !important;
         border-radius: 0 !important;
         display: block !important;
+    }
+
+    /* Date below photo */
+    .print-footer {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        height: 5mm !important;
+        font-family: Arial, sans-serif !important;
+        font-size: 9pt !important;
+        color: #000 !important;
+        width: 100% !important;
+        flex-shrink: 0 !important;
     }
 }
 

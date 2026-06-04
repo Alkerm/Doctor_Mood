@@ -281,6 +281,7 @@ async function performFaceSwap() {
         if (resultUrl) {
             resultImage.src = resultUrl;
             generateQRCode(resultUrl);
+            setPrintDate();
             switchScreen('result');
         } else {
             throw new Error('Failed to generate result image.');
@@ -398,4 +399,15 @@ window.addEventListener('beforeunload', () => {
 // ── Print ──────────────────────────────────────────────────
 function printResult() {
     window.print();
+}
+
+// ── Print Date ─────────────────────────────────────────────
+function setPrintDate() {
+    const el = document.getElementById('print-date');
+    if (!el) return;
+    const now  = new Date();
+    const day  = now.getDate();
+    const month = now.toLocaleString('en-GB', { month: 'long' });
+    const year  = now.getFullYear();
+    el.textContent = `${day} ${month} ${year}`;
 }
