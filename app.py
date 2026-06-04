@@ -123,6 +123,40 @@ def preprocess_photo(image_bytes):
     return encoded.tobytes(), len(faces) > 0
 
 
+def crop_to_portrait(image_bytes, width_mm=100, height_mm=148):
+    """
+    Crop image to portrait ratio (100:148 by default).
+    Trims equally from left & right so the centered subject stays fully visible.
+    Returns original bytes if PIL unavailable or crop fails.
+    """
+    if not PIL_AVAILABLE:
+        return image_bytes
+    try:
+        image = Image.open(BytesIO(image_bytes)).convert('RGB')
+        w, h = image.size
+        target_ratio = width_mm / height_mm   # 0.6757  (portrait: narrower than tall)
+        current_ratio = w / h
+
+        if current_ratio > target_ratio:
+            # Image is wider than target → trim left & right equally
+            new_w = int(h * target_ratio)
+            left  = (w - new_w) // 2
+            image = image.crop((left, 0, left + new_w, h))
+        elif current_ratio < target_ratio:
+            # Image is taller than target → trim top & bottom equally
+            new_h = int(w / target_ratio)
+            top   = (h - new_h) // 2
+            image = image.crop((0, top, w, top + new_h))
+
+        print(f"[CROP] Cropped to portrait {image.size}", flush=True)
+        out = BytesIO()
+        image.save(out, format='JPEG', quality=95)
+        return out.getvalue()
+    except Exception as e:
+        print(f"[CROP] Failed (using original): {e}", flush=True)
+        return image_bytes
+
+
 def overlay_sentence_on_image(image_bytes, sentence):
     """
     Overlay the character's caption sentence on the bottom of the result image.
@@ -370,13 +404,26 @@ def check_status(prediction_id):
                     print(f"[OVERLAY] Adding sentence: {sentence}", flush=True)
                     resp = requests.get(result_url, timeout=30)
                     resp.raise_for_status()
-                    overlaid_bytes = overlay_sentence_on_image(resp.content, sentence)
+                    cropped_bytes  = crop_to_portrait(resp.content)
+                    overlaid_bytes = overlay_sentence_on_image(cropped_bytes, sentence)
                     final_upload   = cloudinary_helper.upload_temp_image(overlaid_bytes)
                     if final_upload:
                         result_url = final_upload['url']
                         print(f"[OVERLAY] Done. New URL: {result_url[:50]}...", flush=True)
                 except Exception as overlay_err:
                     print(f"[OVERLAY] Failed (using original): {overlay_err}", flush=True)
+            else:
+                # No sentence — still crop to portrait
+                try:
+                    resp = requests.get(result_url, timeout=30)
+                    resp.raise_for_status()
+                    cropped_bytes = crop_to_portrait(resp.content)
+                    final_upload  = cloudinary_helper.upload_temp_image(cropped_bytes)
+                    if final_upload:
+                        result_url = final_upload['url']
+                        print(f"[CROP] Done. New URL: {result_url[:50]}...", flush=True)
+                except Exception as crop_err:
+                    print(f"[CROP] Failed (using original): {crop_err}", flush=True)
 
             # Cleanup source image from Cloudinary
             child_id = prediction_data.get('child_cloudinary_id')

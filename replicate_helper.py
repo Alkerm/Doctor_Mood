@@ -193,6 +193,7 @@ def _build_nano_banana_prompt(character: str, style_config: Optional[Dict[str, A
         "Identity lock: keep the exact same face from the input photo "
         "(same eyes, nose, mouth, jawline, skin tone, and natural age appearance). "
         "Do not change facial structure or age. "
+        "The subject must be perfectly centered horizontally in the frame. "
         "Photorealistic, high detail, natural skin texture, "
         "clean lighting, sharp focus. No text, no watermark, no logo, no cartoon, no anime, "
         "no extra people, no face distortion."
