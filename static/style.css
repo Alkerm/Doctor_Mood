@@ -510,36 +510,36 @@ body {
 
 /* ── Print ────────────────────────────────────────────────── */
 @page {
-    size: 148mm 100mm landscape;
+    size: 100mm 148mm portrait;
     margin: 0;
 }
 
 @media print {
     * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
     html, body {
-        width: 148mm !important;
-        height: 100mm !important;
+        width: 100mm !important;
+        height: 148mm !important;
         background: #fff !important;
         overflow: hidden !important;
     }
     .screen { display: none !important; }
     #result-screen {
         display: block !important;
-        width: 148mm !important;
-        height: 100mm !important;
+        width: 100mm !important;
+        height: 148mm !important;
         overflow: hidden !important;
     }
     .header, .qr-section, .controls { display: none !important; }
     .result-container {
-        width: 148mm !important;
-        height: 100mm !important;
+        width: 100mm !important;
+        height: 148mm !important;
         margin: 0 !important;
         padding: 0 !important;
         display: block !important;
     }
     .result-frame {
-        width: 148mm !important;
-        height: 100mm !important;
+        width: 100mm !important;
+        height: 148mm !important;
         border: none !important;
         box-shadow: none !important;
         border-radius: 0 !important;
@@ -547,8 +547,8 @@ body {
         max-width: none !important;
     }
     #result-image {
-        width: 148mm !important;
-        height: 100mm !important;
+        width: 100mm !important;
+        height: 148mm !important;
         object-fit: cover !important;
         border-radius: 0 !important;
         display: block !important;
