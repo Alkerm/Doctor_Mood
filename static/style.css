@@ -536,7 +536,7 @@ body {
         flex-direction: column !important;
         width: 100% !important;
         height: 148mm !important;
-        padding: 25mm 0 !important;
+        padding: 15mm 0 !important;
         background: #fff !important;
         overflow: hidden !important;
     }
@@ -560,7 +560,7 @@ body {
 
     /* Photo */
     .result-container {
-        height: 83mm !important;
+        height: 103mm !important;
         display: flex !important;
         width: 100% !important;
         margin: 0 !important;
@@ -580,7 +580,7 @@ body {
     #result-image {
         width: 100% !important;
         height: 100% !important;
-        object-fit: cover !important;
+        object-fit: contain !important;
         background: #fff !important;
         border-radius: 0 !important;
         display: block !important;

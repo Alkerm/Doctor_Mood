@@ -123,7 +123,7 @@ def preprocess_photo(image_bytes):
     return encoded.tobytes(), len(faces) > 0
 
 
-def crop_to_portrait(image_bytes, width_mm=100, height_mm=148):
+def crop_to_portrait(image_bytes, width_mm=100, height_mm=103):
     """
     Crop image to portrait ratio (100:148 by default).
     Trims equally from left & right so the centered subject stays fully visible.
