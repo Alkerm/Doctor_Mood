@@ -397,26 +397,5 @@ window.addEventListener('beforeunload', () => {
 
 // ── Print ──────────────────────────────────────────────────
 function printResult() {
-    const img = document.getElementById('result-image');
-    if (!img || !img.src) return;
-
-    const win = window.open('', '_blank');
-    win.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>OB-GYN Character</title>
-            <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { background: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-                img { max-width: 100%; max-height: 100vh; object-fit: contain; display: block; }
-                @media print { body { margin: 0; } img { width: 100%; height: auto; } }
-            </style>
-        </head>
-        <body>
-            <img src="${img.src}" onload="window.print(); window.close();" />
-        </body>
-        </html>
-    `);
-    win.document.close();
+    window.print();
 }
