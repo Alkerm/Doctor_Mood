@@ -560,11 +560,12 @@ body {
 
     /* Photo */
     .result-container {
-        flex: 1 !important;
+        height: 93mm !important;
         display: flex !important;
         width: 100% !important;
         margin: 0 !important;
         overflow: hidden !important;
+        flex-shrink: 0 !important;
     }
 
     .result-frame {
